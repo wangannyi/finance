@@ -11,7 +11,10 @@ class CrawlerTests(unittest.TestCase):
             <title>AI Optical Transceiver News</title>
             <meta name="description" content="CPO optical interconnect demand rises">
           </head>
-          <body><h1>Co-packaged optics in AI data centers</h1></body>
+          <body>
+            <h1>Co-packaged optics in AI data centers</h1>
+            <p>电子特气、光刻胶、刻蚀材料方向表现强势。</p>
+          </body>
         </html>
         """
 
@@ -20,6 +23,7 @@ class CrawlerTests(unittest.TestCase):
         self.assertEqual(document["url"], "https://example.com/news")
         self.assertEqual(document["title"], "AI Optical Transceiver News")
         self.assertIn("Co-packaged optics", document["text"])
+        self.assertIn("电子特气", document["text"])
         self.assertIsNone(document["error"])
 
 

@@ -12,6 +12,14 @@ MARKET_CONFIGS = {
             "https://wap.eastmoney.com/a/202606253783247759.html",
             "https://www.stcn.com/article/detail/3980016.html",
             "https://www.stcn.com/article/detail/3978374.html",
+            "https://www.cls.cn/detail/2411836",
+            "https://www.sfccn.com/2026/6-12/xMMDE1MjBfMjE1OTAxMQ.html",
+            "https://finance.sina.com.cn/wm/2026-06-11/doc-iniazpqr3992135.shtml",
+            "https://www.stcn.com/article/detail/3957156.html",
+            "https://www.cls.cn/detail/2370529",
+            "https://www.cls.cn/detail/2397515",
+            "https://finance.eastmoney.com/a/202606083763780253.html",
+            "https://www.stcn.com/article/detail/3802973.html",
         ],
         "directions": [
             {
@@ -265,6 +273,30 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
             ],
         },
         {
+            "name": "电子特气/六氟化钨",
+            "keywords": ["电子特气", "特种气体", "六氟化钨", "WF6", "三氟化氮", "刻蚀气"],
+            "risk": "价格和国产替代预期已被快速交易，需核验订单和高位波动风险。",
+            "leaders": [],
+        },
+        {
+            "name": "光刻胶/湿电子化学品",
+            "keywords": ["光刻胶", "KrF", "ArF", "湿电子化学品", "显影液", "清洗剂", "剥离液"],
+            "risk": "客户验证和量产节奏不确定，短线题材波动可能很大。",
+            "leaders": [],
+        },
+        {
+            "name": "刻蚀材料/设备",
+            "keywords": ["刻蚀", "刻蚀设备", "刻蚀材料", "蚀刻液", "介质刻蚀", "等离子刻蚀"],
+            "risk": "设备和材料验证周期长，需防范涨幅提前透支。",
+            "leaders": [],
+        },
+        {
+            "name": "氟化工/含氟电子材料",
+            "keywords": ["氟化工", "含氟材料", "含氟电子材料", "含氟电子特气", "电子化学品", "氟碳", "氟聚合物", "PTFE", "六氟丁二烯", "高端氟材料"],
+            "risk": "受商品周期、环保供给和下游半导体需求共同影响。",
+            "leaders": [],
+        },
+        {
             "name": "半导体设备/材料",
             "keywords": ["半导体设备", "设备", "材料", "电子特气", "刻蚀", "CMP"],
             "risk": "设备验证周期长，订单和国产替代节奏可能低于预期。",
@@ -315,6 +347,30 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
                 ("澜起科技", "688008.SH", "内存接口芯片龙头。"),
                 ("江波龙", "301308.SZ", "存储模组代表。"),
             ],
+        },
+        {
+            "name": "电子特气/六氟化钨",
+            "keywords": ["电子特气", "特种气体", "六氟化钨", "WF6", "三氟化氮", "刻蚀气", "涨价"],
+            "risk": "涨价和订单传闻容易造成日内高波动，需核验公告和产能。",
+            "leaders": [],
+        },
+        {
+            "name": "光刻胶/湿电子化学品",
+            "keywords": ["光刻胶", "KrF", "ArF", "湿电子化学品", "显影液", "清洗剂", "剥离液", "涨停"],
+            "risk": "验证周期长，短线催化和真实业绩之间可能存在落差。",
+            "leaders": [],
+        },
+        {
+            "name": "刻蚀材料/设备",
+            "keywords": ["刻蚀", "刻蚀设备", "刻蚀材料", "蚀刻液", "介质刻蚀", "等离子刻蚀", "涨停"],
+            "risk": "题材弹性大，设备订单和材料认证需要持续验证。",
+            "leaders": [],
+        },
+        {
+            "name": "氟化工/含氟电子材料",
+            "keywords": ["氟化工", "含氟材料", "含氟电子材料", "含氟电子特气", "电子化学品", "氟碳", "氟聚合物", "PTFE", "六氟丁二烯", "高端氟材料"],
+            "risk": "化工周期和半导体材料逻辑交织，需区分价格弹性与长期壁垒。",
+            "leaders": [],
         },
         {
             "name": "PCB涨价/玻璃基板",

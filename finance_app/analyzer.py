@@ -166,6 +166,104 @@ THEME_COMPANY_GROUPS = {
             ],
         },
         {
+            "patterns": ["电子特气", "特种气体", "六氟化钨", "WF6", "刻蚀气", "三氟化氮"],
+            "leaders": [
+                ("中船特气", "688146.SH", "六氟化钨和高端电子特气代表。"),
+                ("昊华科技", "600378.SH", "高端氟材料和电子化学品平台。"),
+                ("华特气体", "688268.SH", "电子特种气体代表。"),
+                ("金宏气体", "688106.SH", "综合气体和电子大宗气体代表。"),
+                ("南大光电", "300346.SZ", "电子特气、前驱体和光刻胶材料平台。"),
+            ],
+            "challengers": [
+                ("和远气体", "002971.SZ", "电子特气弹性标的。"),
+                ("中巨芯-U", "688549.SH", "电子湿化学品和电子特气新贵。"),
+                ("雅克科技", "002409.SZ", "含氟类特种气体和电子材料代表。"),
+                ("凯美特气", "002549.SZ", "电子特气和工业气体弹性标的。"),
+                ("杭氧股份", "002430.SZ", "工业气体和电子气体供给代表。"),
+            ],
+        },
+        {
+            "patterns": ["光刻胶", "KrF", "ArF", "湿电子化学品", "显影液", "清洗剂", "剥离液"],
+            "leaders": [
+                ("南大光电", "300346.SZ", "光刻胶、前驱体和电子特气材料平台。"),
+                ("彤程新材", "603650.SH", "半导体光刻胶国产替代代表。"),
+                ("晶瑞电材", "300655.SZ", "光刻胶和湿电子化学品代表。"),
+                ("上海新阳", "300236.SZ", "半导体湿电子化学品和电镀液代表。"),
+                ("容大感光", "300576.SZ", "光刻胶材料弹性标的。"),
+            ],
+            "challengers": [
+                ("兴福电子", "688545.SH", "湿电子化学品新贵。"),
+                ("怡达股份", "300721.SZ", "湿电子化学品弹性标的。"),
+                ("强力新材", "300429.SZ", "光刻胶光引发剂代表。"),
+                ("广信材料", "300537.SZ", "光刻胶和电子材料弹性标的。"),
+                ("飞凯材料", "300398.SZ", "电子材料和光刻胶配套代表。"),
+            ],
+        },
+        {
+            "patterns": ["刻蚀材料", "刻蚀设备", "刻蚀", "蚀刻液", "介质刻蚀", "等离子刻蚀"],
+            "leaders": [
+                ("中微公司", "688012.SH", "刻蚀设备核心公司。"),
+                ("北方华创", "002371.SZ", "半导体设备平台型龙头。"),
+                ("拓荆科技", "688072.SH", "薄膜沉积设备代表。"),
+                ("盛美上海", "688082.SH", "清洗设备代表。"),
+                ("兴福电子", "688545.SH", "蚀刻液和湿电子化学品代表。"),
+            ],
+            "challengers": [
+                ("芯源微", "688037.SH", "涂胶显影设备代表。"),
+                ("至纯科技", "603690.SH", "高纯工艺系统和湿法设备代表。"),
+                ("华海清科", "688120.SH", "CMP 设备和工艺装备代表。"),
+                ("安集科技", "688019.SH", "CMP 和刻蚀相关材料代表。"),
+                ("江化微", "603078.SH", "湿电子化学品代表。"),
+            ],
+        },
+        {
+            "patterns": ["氟化工", "含氟材料", "含氟电子材料", "含氟电子特气", "电子化学品", "氟碳", "氟聚合物", "PTFE", "六氟丁二烯", "高端氟材料"],
+            "leaders": [
+                ("昊华科技", "600378.SH", "高端氟材料和电子化学品平台。"),
+                ("巨化股份", "600160.SH", "氟化工和制冷剂龙头。"),
+                ("三美股份", "603379.SH", "氟化工和制冷剂代表。"),
+                ("永和股份", "605020.SH", "氟化工产业链代表。"),
+                ("多氟多", "002407.SZ", "氟化盐和含氟材料代表。"),
+            ],
+            "challengers": [
+                ("中欣氟材", "002915.SZ", "含氟精细化工弹性标的。"),
+                ("联创股份", "300343.SZ", "含氟材料弹性标的。"),
+                ("雅克科技", "002409.SZ", "含氟类特种气体和电子材料代表。"),
+                ("新宙邦", "300037.SZ", "含氟电解液材料代表。"),
+                ("永太科技", "002326.SZ", "含氟精细化学品代表。"),
+            ],
+        },
+        {
+            "patterns": ["靶材", "溅射靶材", "铜靶", "铝靶", "钽靶"],
+            "leaders": [
+                ("江丰电子", "300666.SZ", "半导体靶材国产替代代表。"),
+                ("有研新材", "600206.SH", "稀有金属材料和靶材代表。"),
+                ("阿石创", "300706.SZ", "PVD 镀膜材料代表。"),
+                ("隆华科技", "300263.SZ", "显示和半导体靶材代表。"),
+                ("东方钽业", "000962.SZ", "钽材料和高端金属材料代表。"),
+            ],
+            "challengers": [
+                ("康强电子", "002119.SZ", "半导体封装材料弹性标的。"),
+                ("贵研铂业", "600459.SH", "贵金属材料代表。"),
+                ("西部材料", "002149.SZ", "稀有金属材料代表。"),
+                ("安泰科技", "000969.SZ", "先进金属材料代表。"),
+            ],
+        },
+        {
+            "patterns": ["半导体硅片", "先进硅片", "大硅片", "硅片", "外延片"],
+            "leaders": [
+                ("沪硅产业", "688126.SH", "半导体硅片平台公司。"),
+                ("TCL中环", "002129.SZ", "硅片和半导体材料代表。"),
+                ("立昂微", "605358.SH", "硅片和功率半导体代表。"),
+                ("有研硅", "688432.SH", "半导体硅材料代表。"),
+                ("神工股份", "688233.SH", "单晶硅材料代表。"),
+            ],
+            "challengers": [
+                ("中晶科技", "003026.SZ", "半导体硅材料弹性标的。"),
+                ("晶升股份", "688478.SH", "晶体生长设备代表。"),
+            ],
+        },
+        {
             "patterns": ["红利", "股息", "公用事业", "水电", "煤炭"],
             "leaders": [
                 ("长江电力", "600900.SH", "水电红利核心资产。"),
@@ -514,12 +612,44 @@ def _all_text(documents: Iterable) -> str:
     return "\n".join(_document_text(document) for document in documents).lower()
 
 
+SOURCE_AUTHORITY_WEIGHTS = {
+    "cls.cn": 18,
+    "stcn.com": 16,
+    "finance.sina.com.cn": 14,
+    "sfccn.com": 14,
+    "eastmoney.com": 10,
+    "egsea.com": 10,
+}
+
+
+def _source_weight(document) -> int:
+    if not isinstance(document, dict):
+        return 0
+    url = str(document.get("url", "")).lower()
+    return next((weight for host, weight in SOURCE_AUTHORITY_WEIGHTS.items() if host in url), 0)
+
+
 def _score_direction(direction: dict, documents: Iterable[str], horizon: str, index: int) -> int:
-    text = _all_text(documents)
-    keyword_hits = sum(text.count(keyword.lower()) for keyword in direction["keywords"])
+    keyword_hits = 0
+    source_boost = 0
+    title_boost = 0
+    for document in documents:
+        text = _document_text(document).lower()
+        title = str(document.get("title", "")).lower() if isinstance(document, dict) else ""
+        matched = 0
+        for keyword in direction["keywords"]:
+            lowered = keyword.lower()
+            count = text.count(lowered)
+            if count:
+                keyword_hits += count
+                matched += 1
+                if lowered in title:
+                    title_boost += 8
+        if matched:
+            source_boost += _source_weight(document) + max(0, matched - 1) * 4
     weights = HORIZON_WEIGHTS[horizon]
     base = max(0, 100 - index * 9)
-    return base + keyword_hits * 12 + weights["freshness"] * 3 + weights["position"]
+    return base + keyword_hits * 12 + title_boost + source_boost + weights["freshness"] * 3 + weights["position"]
 
 
 def _evidence(direction: dict, score: int, market_name: str) -> str:
@@ -573,11 +703,7 @@ def _directions_for_horizon(market_config: dict, horizon: str) -> list[dict]:
             }
         )
         seen.add(theme["name"])
-        if len(directions) >= 10:
-            break
     for extra in EXTRA_DIRECTIONS.get(market, []):
-        if len(directions) >= 10:
-            break
         if extra["name"] in seen:
             continue
         directions.append({**extra, "leaders": [], "challengers": []})

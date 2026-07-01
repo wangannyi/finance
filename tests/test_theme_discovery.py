@@ -75,6 +75,23 @@ class ThemeDiscoveryTests(unittest.TestCase):
         self.assertIn("PCB/AI服务器链", names)
         self.assertIn("模拟/功率半导体涨价", names)
 
+    def test_discovers_a_share_semiconductor_material_micro_themes(self):
+        documents = [
+            {
+                "url": "https://www.cls.cn/detail/2411836",
+                "title": "半导体材料持续强势，电子特气、光刻胶方向活跃",
+                "text": "电子特气 六氟化钨 光刻胶 湿电子化学品 刻蚀材料 氟化工 含氟电子材料 靶材 半导体硅片 资金关注。",
+                "error": None,
+            }
+        ]
+
+        names = [theme["name"] for theme in discover_themes("ch", documents)]
+
+        self.assertIn("电子特气/六氟化钨", names)
+        self.assertIn("光刻胶/湿电子化学品", names)
+        self.assertIn("刻蚀材料/设备", names)
+        self.assertIn("氟化工/含氟电子材料", names)
+
     def test_discovers_hk_ai_fundraising_theme(self):
         documents = [
             {

@@ -30,8 +30,9 @@ def extract_text(html: str) -> str:
 def extract_document(url: str, html: str, error: str | None = None) -> dict:
     title_matches = re.findall(r"<title[^>]*>(.*?)</title>", html, flags=re.I | re.S)
     heading_matches = re.findall(r"<h[1-3][^>]*>(.*?)</h[1-3]>", html, flags=re.I | re.S)
+    paragraph_matches = re.findall(r"<p[^>]*>(.*?)</p>", html, flags=re.I | re.S)
     meta_matches = re.findall(r'<meta[^>]+(?:name|property)=["\'](?:description|og:title)["\'][^>]+content=["\'](.*?)["\']', html, flags=re.I | re.S)
-    chunks = title_matches + heading_matches + meta_matches
+    chunks = title_matches + heading_matches + meta_matches + paragraph_matches[:80]
     cleaned = []
     for chunk in chunks:
         text = re.sub(r"<[^>]+>", " ", chunk)

@@ -200,6 +200,37 @@ class MarketReportTests(unittest.TestCase):
         self.assertIn("PCB/AI服务器链", week_names)
         self.assertIn("AI 算力硬件", month_names)
 
+    def test_a_share_semiconductor_material_micro_themes_enter_short_horizons(self):
+        documents = [
+            {
+                "url": "https://www.cls.cn/detail/2411836",
+                "title": "半导体材料持续强势，电子特气、光刻胶、刻蚀材料方向走强",
+                "text": "电子特气 六氟化钨 光刻胶 湿电子化学品 刻蚀材料 刻蚀设备 氟化工 含氟电子材料 靶材 半导体硅片 多股涨停。",
+                "error": None,
+            },
+            {
+                "url": "https://www.stcn.com/article/detail/3957156.html",
+                "title": "高端氟材料和电子化学品热度提升",
+                "text": "昊华科技 高端氟材料 电子化学品 含氟类特种气体 六氟化钨 光刻胶 板块异动。",
+                "error": None,
+            },
+        ]
+
+        report = build_market_report(MARKET_CONFIGS["ch"], documents).to_dict()
+        day_names = [item["name"] for item in report["horizons"]["day"]]
+        week_names = [item["name"] for item in report["horizons"]["week"]]
+
+        self.assertIn("电子特气/六氟化钨", day_names)
+        self.assertIn("光刻胶/湿电子化学品", day_names)
+        self.assertIn("刻蚀材料/设备", week_names)
+        self.assertIn("氟化工/含氟电子材料", week_names)
+
+        gas = next(item for item in report["horizons"]["day"] if item["name"] == "电子特气/六氟化钨")
+        gas_symbols = {company["ticker"] for company in gas["leaders"] + gas["challengers"]}
+
+        self.assertIn("688146.SH", gas_symbols)
+        self.assertNotIn("300308.SZ", gas_symbols)
+
     def test_all_market_configs_keep_horizon_names_distinct(self):
         documents = [
             "CPO 光模块 PCB AI服务器 存储芯片 模拟芯片 功率半导体 涨价 机器人",
