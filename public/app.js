@@ -5,6 +5,7 @@ const labels = {
 };
 
 let selectedMarket = "all";
+let currentReports = [];
 
 function formatNumber(value) {
   if (value === null || value === undefined) return "暂无数据";
@@ -48,6 +49,7 @@ function hostLabel(url) {
 }
 
 function renderReports(reports) {
+  currentReports = reports;
   const container = document.querySelector("#reports");
   const visible = selectedMarket === "all" ? reports : reports.filter((item) => item.market === selectedMarket);
 
@@ -79,21 +81,24 @@ function renderReports(reports) {
                       <strong>${item.name}</strong>
                       <span class="score">${item.score}</span>
                     </div>
-                    <div class="evidence">${item.evidence}</div>
-                    <div class="evidence-sources">
-                      ${sourceRows || '<span class="no-source">本轮未命中可展示来源</span>'}
-                    </div>
-                    <div class="risk">风险：${item.risk}</div>
                     <div class="leaders">
                       ${(item.leaders || [])
                         .map(
                           (leader) =>
                             `<button class="leader" type="button" data-name="${leader.name}" data-symbol="${leader.ticker}" data-detail="${leader.detail}">
-                              <strong>${leader.name}</strong> <span>${leader.ticker}</span>：${leader.detail}
+                              <strong>${leader.name}</strong><span>${leader.ticker}</span>
                             </button>`,
                         )
                         .join("")}
                     </div>
+                    <details class="direction-detail">
+                      <summary>证据与风险</summary>
+                      <div class="evidence">${item.evidence}</div>
+                      <div class="risk">风险：${item.risk}</div>
+                      <div class="evidence-sources">
+                        ${sourceRows || '<span class="no-source">本轮未命中可展示来源</span>'}
+                      </div>
+                    </details>
                   </article>`;
               },
             )
@@ -113,11 +118,14 @@ function renderReports(reports) {
               <h2>${report.market_name}</h2>
               <p>${report.summary}</p>
             </div>
-            <div class="generated">更新时间<br>${formatTime(report.generated_at)}</div>
+            <div class="generated">${formatTime(report.generated_at)}</div>
           </div>
           ${discoveries}
           <div class="horizon-grid">${horizons}</div>
-          <div class="sources">${sources}</div>
+          <details class="source-wrap">
+            <summary>数据来源</summary>
+            <div class="sources">${sources}</div>
+          </details>
         </article>`;
     })
     .join("");
@@ -131,32 +139,16 @@ function renderDiscoveries(discoveredThemes) {
     <section class="discovery-panel">
       <div class="discovery-title">
         <strong>主动发现</strong>
-        <span>来源扫描，不等于买入建议</span>
       </div>
       <div class="discovery-grid">
         ${discoveredThemes
           .map(
             (theme) => `
-              <article class="discovery-card">
-                <div class="discovery-card-head">
-                  <strong>${theme.name}</strong>
-                  <span>${theme.score}</span>
-                </div>
+              <details class="discovery-chip">
+                <summary><strong>${theme.name}</strong><span>${theme.score}</span></summary>
                 <p>${theme.risk}</p>
                 <div class="keyword-line">${(theme.matched_keywords || []).slice(0, 6).join(" / ")}</div>
-                <div class="evidence-sources">
-                  ${(theme.evidence_sources || [])
-                    .slice(0, 2)
-                    .map(
-                      (source) => `
-                        <a class="evidence-source" href="${source.url}" target="_blank" rel="noreferrer">
-                          <strong>${source.title || hostLabel(source.url)}</strong>
-                          <span>${(source.matched_keywords || []).slice(0, 4).join(" / ")}</span>
-                        </a>`,
-                    )
-                    .join("")}
-                </div>
-              </article>`,
+              </details>`,
           )
           .join("")}
       </div>
@@ -224,6 +216,14 @@ function renderDataSnapshot(snapshot) {
     ${samples ? `<div class="snapshot-list">${samples}</div>` : '<div class="empty">安装 AKShare 后可显示 A 股/港股增强行情快照。</div>'}`;
 }
 
+function renderSnapshotLoading() {
+  document.querySelector("#dataSnapshot").innerHTML = '<div class="empty compact-empty">行情快照加载中...</div>';
+}
+
+function renderSnapshotIdle() {
+  document.querySelector("#dataSnapshot").innerHTML = '<div class="empty compact-empty">行情快照按需加载，不影响首屏速度。</div>';
+}
+
 function renderCandidates(pool) {
   const container = document.querySelector("#candidatePool");
   const limit = document.querySelector("#candidateLimit");
@@ -236,31 +236,26 @@ function renderCandidates(pool) {
   }
 
   container.innerHTML = `
-    <div class="candidate-header">
-      <span>公司</span>
-      <span>市场</span>
-      <span>主题</span>
-      <span>动作</span>
-      <span>上限</span>
-      <span>风险</span>
-    </div>
+    <div class="candidate-grid">
     ${candidates
-      .slice(0, 18)
+      .slice(0, 12)
       .map(
         (item) => `
-          <div class="candidate-row">
+          <article class="candidate-card">
             <button class="leader candidate-company" type="button" data-name="${item.name}" data-symbol="${item.symbol}" data-detail="${item.leader_detail}">
               <strong>${item.name}</strong><span>${item.symbol}</span>
             </button>
-            <span>${item.market_name}</span>
-            <span>${item.themes.slice(0, 2).join(" / ")}</span>
-            <strong>${item.action}</strong>
-            <span>${formatMarketCap(item.max_observation_amount, "CNY")}</span>
-            <span>${item.risk_tags.join("、")}</span>
-          </div>`,
+            <div class="candidate-meta">
+              <span>${item.market_name}</span>
+              <strong>${item.action}</strong>
+              <span>${formatMarketCap(item.max_observation_amount, "CNY")}</span>
+            </div>
+            <p>${item.themes.slice(0, 2).join(" / ")}</p>
+            <small>${item.risk_tags.join("、")}</small>
+          </article>`,
       )
       .join("")}
-    <div class="candidate-note">候选池只用于观察和买入前检查，不代表买入建议。真正交易前需要核验财报、公告、估值和仓位。</div>`;
+    </div>`;
 }
 
 function showCompanyLoading(name, symbol) {
@@ -322,38 +317,84 @@ function renderHistory(history) {
     .join("");
 }
 
-async function loadData() {
-  const [reportsResponse, historyResponse, portfolioResponse, snapshotResponse, candidatesResponse] = await Promise.all([
+async function loadCoreData() {
+  const [reportsResponse, portfolioResponse, candidatesResponse] = await Promise.all([
     fetch("/api/reports"),
-    fetch("/api/history"),
     fetch("/api/portfolio"),
-    fetch("/api/data-snapshot"),
     fetch("/api/candidates"),
   ]);
   const reports = await reportsResponse.json();
-  const history = await historyResponse.json();
   const portfolio = await portfolioResponse.json();
-  const snapshot = await snapshotResponse.json();
   const candidates = await candidatesResponse.json();
   renderReports(reports);
-  renderHistory(history);
   renderPortfolio(portfolio);
-  renderDataSnapshot(snapshot);
   renderCandidates(candidates);
+}
+
+async function loadSecondaryData() {
+  try {
+    const historyResponse = await fetch("/api/history");
+    renderHistory(await historyResponse.json());
+  } catch {
+    document.querySelector("#history").innerHTML = '<div class="warning">历史记录加载失败</div>';
+  }
+}
+
+async function loadData() {
+  await loadCoreData();
+  renderSnapshotIdle();
+  loadSecondaryData();
+}
+
+async function loadSnapshot() {
+  const button = document.querySelector("#loadSnapshotBtn");
+  button.disabled = true;
+  renderSnapshotLoading();
+  try {
+    const snapshotResponse = await fetch("/api/data-snapshot");
+    renderDataSnapshot(await snapshotResponse.json());
+  } catch {
+    document.querySelector("#dataSnapshot").innerHTML = '<div class="warning">行情快照加载失败</div>';
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function pollRefresh() {
+  const status = document.querySelector("#status");
+  const button = document.querySelector("#refreshBtn");
+  for (let i = 0; i < 120; i += 1) {
+    const response = await fetch("/api/refresh-status");
+    const payload = await response.json();
+    if (payload.status === "complete") {
+      status.textContent = `已更新 ${payload.saved_count || 0} 个市场`;
+      await loadCoreData();
+      loadSecondaryData();
+      button.disabled = false;
+      return;
+    }
+    if (payload.status === "error") {
+      status.textContent = payload.error || "更新失败";
+      button.disabled = false;
+      return;
+    }
+    status.textContent = "后台刷新中...";
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  status.textContent = "刷新仍在后台运行";
+  button.disabled = false;
 }
 
 async function refreshData() {
   const status = document.querySelector("#status");
   const button = document.querySelector("#refreshBtn");
   button.disabled = true;
-  status.textContent = "本地爬虫运行中...";
+  status.textContent = "启动后台刷新...";
   try {
     await fetch("/api/refresh");
-    await loadData();
-    status.textContent = "已更新到本地数据库";
+    pollRefresh();
   } catch (error) {
     status.textContent = "更新失败，请看终端日志";
-  } finally {
     button.disabled = false;
   }
 }
@@ -363,11 +404,12 @@ document.querySelectorAll(".market-tab").forEach((button) => {
     selectedMarket = button.dataset.market;
     document.querySelectorAll(".market-tab").forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
-    await loadData();
+    renderReports(currentReports);
   });
 });
 
 document.querySelector("#refreshBtn").addEventListener("click", refreshData);
+document.querySelector("#loadSnapshotBtn").addEventListener("click", loadSnapshot);
 document.querySelector("#closeCompanyPanel").addEventListener("click", () => {
   document.querySelector("#companyOverlay").hidden = true;
 });
@@ -384,4 +426,4 @@ document.addEventListener("click", (event) => {
 });
 
 loadData();
-setInterval(loadData, 5 * 60 * 1000);
+setInterval(loadCoreData, 5 * 60 * 1000);

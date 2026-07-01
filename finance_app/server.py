@@ -6,15 +6,16 @@ from urllib.parse import parse_qs, urlparse
 
 from .akshare_provider import AkshareProvider
 from .candidates import build_candidate_pool
-from .crawler import refresh_reports
 from .market_data import get_company_metrics
 from .portfolio import build_default_portfolio_plan
+from .refresh_manager import RefreshManager
 from .storage import ReportStore
 
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_DIR = ROOT / "public"
 DB_PATH = ROOT / "data" / "reports.sqlite3"
+REFRESH_MANAGER = RefreshManager(str(DB_PATH))
 
 
 class FinanceHandler(BaseHTTPRequestHandler):
@@ -66,7 +67,10 @@ class FinanceHandler(BaseHTTPRequestHandler):
             self._send_json(get_company_metrics(symbol, name=name, db_path=str(DB_PATH)))
             return
         if parsed.path == "/api/refresh":
-            self._send_json(refresh_reports(str(DB_PATH)))
+            self._send_json(REFRESH_MANAGER.start())
+            return
+        if parsed.path == "/api/refresh-status":
+            self._send_json(REFRESH_MANAGER.status())
             return
         if parsed.path in ("", "/"):
             self._send_file(PUBLIC_DIR / "index.html")
