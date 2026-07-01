@@ -11,6 +11,8 @@ QUOTE_URL = "https://query1.finance.yahoo.com/v7/finance/quote"
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 NASDAQ_SUMMARY_URL = "https://api.nasdaq.com/api/quote/{symbol}/summary?assetclass=stocks"
 NASDAQ_DIVIDENDS_URL = "https://api.nasdaq.com/api/quote/{symbol}/dividends?assetclass=stocks"
+EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
+EASTMONEY_FIELDS = "f57,f58,f116,f162"
 
 
 def normalize_yahoo_symbol(symbol: str) -> str:
@@ -67,6 +69,18 @@ def _fetch_nasdaq_json(url: str) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
+def _fetch_eastmoney_json(url: str) -> dict:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 local-private-finance-research/1.0",
+            "Referer": "https://quote.eastmoney.com/",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=12) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
 def _parse_number(value) -> float | None:
     if value in (None, "", "N/A", "NA", "--"):
         return None
@@ -84,6 +98,13 @@ def _parse_percent_ratio(value) -> float | None:
     if parsed is None:
         return None
     return round(parsed / 100, 6)
+
+
+def _parse_scaled_number(value, divisor: float = 100) -> float | None:
+    parsed = _parse_number(value)
+    if parsed is None:
+        return None
+    return round(parsed / divisor, 4)
 
 
 def _find_header_value(items: list[dict], label: str) -> str | None:
@@ -111,6 +132,45 @@ def fetch_nasdaq_fundamentals(symbol: str) -> dict:
     summary = _fetch_nasdaq_json(NASDAQ_SUMMARY_URL.format(symbol=encoded))
     dividends = _fetch_nasdaq_json(NASDAQ_DIVIDENDS_URL.format(symbol=encoded))
     return parse_nasdaq_fundamentals(summary, dividends)
+
+
+def fetch_eastmoney_fundamentals(symbol: str) -> dict:
+    market = _eastmoney_market_id(symbol)
+    if market is None:
+        return {}
+    code = symbol.split(".", 1)[0]
+    params = urllib.parse.urlencode({"secid": f"{market}.{code}", "fields": EASTMONEY_FIELDS})
+    payload = _fetch_eastmoney_json(f"{EASTMONEY_QUOTE_URL}?{params}")
+    return parse_eastmoney_fundamentals(payload)
+
+
+def fetch_fallback_fundamentals(symbol: str) -> dict:
+    if symbol.endswith((".SZ", ".SH")):
+        return fetch_eastmoney_fundamentals(symbol)
+    return fetch_nasdaq_fundamentals(symbol)
+
+
+def _eastmoney_market_id(symbol: str) -> str | None:
+    if symbol.endswith(".SH"):
+        return "1"
+    if symbol.endswith(".SZ"):
+        return "0"
+    return None
+
+
+def parse_eastmoney_fundamentals(payload: dict) -> dict:
+    data = payload.get("data") or {}
+    if not data:
+        return {}
+    return {
+        "market_cap": _parse_number(data.get("f116")),
+        "trailing_pe": _parse_scaled_number(data.get("f162")),
+        "forward_pe": None,
+        "dividend_yield": None,
+        "fifty_two_week_high": None,
+        "fifty_two_week_low": None,
+        "source": "东方财富单股行情接口",
+    }
 
 
 def parse_nasdaq_fundamentals(summary: dict, dividends: dict) -> dict:
@@ -175,7 +235,7 @@ def get_company_metrics(symbol: str, name: str = "", db_path: str = "data/report
         fundamentals_error = None
         if quote_error:
             try:
-                fundamentals = fetch_nasdaq_fundamentals(symbol)
+                fundamentals = fetch_fallback_fundamentals(symbol)
             except Exception as exc:
                 fundamentals_error = str(exc)
 
@@ -205,9 +265,9 @@ def get_company_metrics(symbol: str, name: str = "", db_path: str = "data/report
             "source": "; ".join(sources),
             "stale": False,
             "error": (
-                "Yahoo quote 接口暂时不可用，已尝试用 NASDAQ 公开接口补齐市值/PE/股息率；"
+                "Yahoo quote 接口暂时不可用，已尝试用备用公开接口补齐市值/PE/股息率；"
                 f"价格、涨跌幅和可用区间数据来自 chart endpoint。原始错误：{quote_error}"
-                + (f"；NASDAQ 备用源错误：{fundamentals_error}" if fundamentals_error else "")
+                + (f"；备用源错误：{fundamentals_error}" if fundamentals_error else "")
                 if quote_error
                 else None
             ),
