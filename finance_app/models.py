@@ -36,6 +36,7 @@ class MarketReport:
     summary: str
     sources: List[str]
     horizons: Dict[str, List[HotDirection]]
+    discovered_themes: List[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)

@@ -2,6 +2,7 @@ from typing import Iterable
 
 from .config import HORIZON_WEIGHTS
 from .models import EvidenceSource, HotDirection, Leader, MarketReport, utc_now_iso
+from .theme_discovery import discover_themes
 
 
 def _document_text(document) -> str:
@@ -57,6 +58,7 @@ def _evidence_sources(direction: dict, documents: Iterable, limit: int = 3) -> l
 
 
 def build_market_report(market_config: dict, documents: Iterable[str], market_code: str | None = None) -> MarketReport:
+    documents = list(documents)
     horizons = {}
     for horizon in ("day", "week", "month"):
         scored = []
@@ -85,4 +87,5 @@ def build_market_report(market_config: dict, documents: Iterable[str], market_co
         summary=market_config["summary"],
         sources=market_config["sources"],
         horizons=horizons,
+        discovered_themes=discover_themes(market_code or market_config["code"], documents),
     )

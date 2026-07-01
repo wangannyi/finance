@@ -58,6 +58,7 @@ function renderReports(reports) {
 
   container.innerHTML = visible
     .map((report) => {
+      const discoveries = renderDiscoveries(report.discovered_themes || []);
       const horizons = ["day", "week", "month"]
         .map((horizon) => {
           const rows = (report.horizons[horizon] || [])
@@ -114,11 +115,52 @@ function renderReports(reports) {
             </div>
             <div class="generated">更新时间<br>${formatTime(report.generated_at)}</div>
           </div>
+          ${discoveries}
           <div class="horizon-grid">${horizons}</div>
           <div class="sources">${sources}</div>
         </article>`;
     })
     .join("");
+}
+
+function renderDiscoveries(discoveredThemes) {
+  if (!discoveredThemes.length) {
+    return '<div class="discovery-empty">主动发现：本轮未捕捉到额外高频新主题</div>';
+  }
+  return `
+    <section class="discovery-panel">
+      <div class="discovery-title">
+        <strong>主动发现</strong>
+        <span>来源扫描，不等于买入建议</span>
+      </div>
+      <div class="discovery-grid">
+        ${discoveredThemes
+          .map(
+            (theme) => `
+              <article class="discovery-card">
+                <div class="discovery-card-head">
+                  <strong>${theme.name}</strong>
+                  <span>${theme.score}</span>
+                </div>
+                <p>${theme.risk}</p>
+                <div class="keyword-line">${(theme.matched_keywords || []).slice(0, 6).join(" / ")}</div>
+                <div class="evidence-sources">
+                  ${(theme.evidence_sources || [])
+                    .slice(0, 2)
+                    .map(
+                      (source) => `
+                        <a class="evidence-source" href="${source.url}" target="_blank" rel="noreferrer">
+                          <strong>${source.title || hostLabel(source.url)}</strong>
+                          <span>${(source.matched_keywords || []).slice(0, 4).join(" / ")}</span>
+                        </a>`,
+                    )
+                    .join("")}
+                </div>
+              </article>`,
+          )
+          .join("")}
+      </div>
+    </section>`;
 }
 
 function renderPortfolio(plan) {

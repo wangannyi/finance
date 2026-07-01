@@ -340,6 +340,81 @@ main {
   margin-bottom: 0;
 }
 
+.discovery-empty,
+.discovery-panel {
+  margin-top: 16px;
+}
+
+.discovery-empty {
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+}
+
+.discovery-panel {
+  border: 1px solid rgba(101, 168, 255, 0.34);
+  border-radius: 8px;
+  background: rgba(101, 168, 255, 0.06);
+  padding: 12px;
+}
+
+.discovery-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.discovery-title span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.discovery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.discovery-card {
+  border: 1px solid rgba(47, 59, 72, 0.8);
+  border-radius: 8px;
+  background: rgba(13, 17, 23, 0.32);
+  padding: 10px;
+  min-width: 0;
+}
+
+.discovery-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.discovery-card-head span {
+  color: #08111b;
+  background: var(--amber);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.discovery-card p,
+.keyword-line {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 8px;
+}
+
+.keyword-line {
+  color: var(--blue);
+}
+
 .generated {
   color: var(--muted);
   font-size: 12px;
@@ -655,7 +730,8 @@ main {
   .allocation,
   .planning-grid,
   .portfolio-markets,
-  .guardrail-row {
+  .guardrail-row,
+  .discovery-grid {
     grid-template-columns: 1fr;
   }
 

@@ -66,6 +66,21 @@ class MarketReportTests(unittest.TestCase):
         self.assertEqual(cpo["evidence_sources"][0]["title"], "CPO optical transceiver demand accelerates")
         self.assertIn("CPO", cpo["evidence_sources"][0]["matched_keywords"])
 
+    def test_report_includes_proactive_discovered_themes(self):
+        documents = [
+            {
+                "url": "https://example.com/quantum",
+                "title": "Quantum computing stocks rally",
+                "text": "IonQ Rigetti D-Wave quantum computing stocks rally.",
+                "error": None,
+            }
+        ]
+
+        report = build_market_report(MARKET_CONFIGS["us"], documents).to_dict()
+        names = [theme["name"] for theme in report["discovered_themes"]]
+
+        self.assertIn("量子计算", names)
+
 
 if __name__ == "__main__":
     unittest.main()
