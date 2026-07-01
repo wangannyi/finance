@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>私人投资情报看板</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Local Private Dashboard</p>
+        <h1>私人投资情报看板</h1>
+      </div>
+      <div class="actions">
+        <span id="status" class="status">仅读取本地数据</span>
+        <button id="refreshBtn" type="button">立即更新</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="allocation">
+        <div>
+          <span>A 股</span>
+          <strong>30 万</strong>
+          <small>ch 小帮手</small>
+        </div>
+        <div>
+          <span>港股</span>
+          <strong>10 万</strong>
+          <small>hk 小帮手</small>
+        </div>
+        <div>
+          <span>美股</span>
+          <strong>10 万</strong>
+          <small>us 小帮手</small>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="市场筛选">
+        <button class="market-tab active" data-market="all">全部</button>
+        <button class="market-tab" data-market="ch">A 股</button>
+        <button class="market-tab" data-market="hk">港股</button>
+        <button class="market-tab" data-market="us">美股</button>
+      </section>
+
+      <section id="reports" class="reports"></section>
+
+      <section class="history-wrap">
+        <div class="section-head">
+          <h2>滚动更新记录</h2>
+          <span>最近 30 条</span>
+        </div>
+        <div id="history" class="ticker"></div>
+      </section>
+    </main>
+
+    <div id="companyOverlay" class="company-overlay" hidden>
+      <aside class="company-panel" aria-live="polite">
+        <div class="company-panel-head">
+          <div>
+            <p class="eyebrow">Company Detail</p>
+            <h2 id="companyTitle">公司详情</h2>
+          </div>
+          <button id="closeCompanyPanel" type="button" aria-label="关闭">关闭</button>
+        </div>
+        <div id="companyBody" class="company-body"></div>
+      </aside>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
