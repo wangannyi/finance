@@ -34,6 +34,19 @@ class CandidatePoolTests(unittest.TestCase):
         self.assertTrue(first["pre_trade_checks"])
         self.assertEqual(pool["limits"]["max_single_position_amount"], 25000)
 
+    def test_cpo_and_memory_candidates_are_high_volatility(self):
+        reports = [
+            build_market_report(
+                MARKET_CONFIGS["us"],
+                ["CPO optical transceiver silicon photonics HBM DRAM NAND memory storage"],
+            ).to_dict()
+        ]
+        pool = build_candidate_pool(reports, build_default_portfolio_plan())
+        by_theme = {theme: item for item in pool["candidates"] for theme in item["themes"]}
+
+        self.assertIn("高波动", by_theme["CPO/光通信"]["risk_tags"])
+        self.assertIn("高波动", by_theme["AI 存储/HBM"]["risk_tags"])
+
 
 if __name__ == "__main__":
     unittest.main()

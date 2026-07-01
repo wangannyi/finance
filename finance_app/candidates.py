@@ -66,7 +66,7 @@ def _risk_tags(candidate: dict) -> list[str]:
     themes = " ".join(candidate["themes"])
     if candidate["max_score"] >= 125:
         tags.append("热度高")
-    if any(keyword in themes for keyword in ["AI", "半导体", "机器人", "创新药"]):
+    if any(keyword in themes for keyword in ["AI", "半导体", "机器人", "创新药", "CPO", "光通信", "存储", "HBM"]):
         tags.append("高波动")
     if candidate["market"] in {"hk", "us"}:
         tags.append("汇率风险")

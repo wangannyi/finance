@@ -37,6 +37,18 @@ class MarketReportTests(unittest.TestCase):
         self.assertIn("month", loaded["horizons"])
         self.assertEqual(len(loaded["horizons"]["month"]), 5)
 
+    def test_us_report_surfaces_memory_and_cpo_when_documents_mention_them(self):
+        documents = [
+            "AI memory HBM DRAM NAND storage Micron SanDisk Western Digital Seagate",
+            "CPO co-packaged optics optical networking transceiver silicon photonics Coherent Lumentum Marvell Broadcom",
+        ]
+
+        report = build_market_report(MARKET_CONFIGS["us"], documents).to_dict()
+        month_names = [item["name"] for item in report["horizons"]["month"]]
+
+        self.assertIn("AI 存储/HBM", month_names)
+        self.assertIn("CPO/光通信", month_names)
+
 
 if __name__ == "__main__":
     unittest.main()

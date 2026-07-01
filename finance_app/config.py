@@ -134,11 +134,36 @@ MARKET_CONFIGS = {
             "https://www.nasdaq.com/market-activity/stocks",
             "https://fred.stlouisfed.org/",
             "https://finance.yahoo.com/",
+            "https://finance.yahoo.com/technology/",
+            "https://finance.yahoo.com/topic/semiconductors/",
+            "https://finance.yahoo.com/technology/ai/articles/optical-transceiver-market-set-double-104800250.html",
+            "https://www.idtechex.com/en/research-report/co-packaged-optics-cpo/1138",
+            "https://futurumgroup.com/insights/coherent-q3-fy-2026-ai-data-center-demand-accelerates-optical-growth/",
         ],
         "directions": [
             {
+                "name": "AI 存储/HBM",
+                "keywords": ["memory", "storage", "HBM", "DRAM", "NAND", "SSD", "Micron", "SanDisk", "Western Digital", "Seagate"],
+                "risk": "存储是强周期行业，价格和供需反转会造成业绩与估值双杀。",
+                "leaders": [
+                    ("Micron Technology", "MU", "美国存储龙头，关注 HBM、DRAM/NAND 价格和 AI 服务器需求。"),
+                    ("SanDisk", "SNDK", "NAND/SSD 代表，关注企业级存储需求和价格周期。"),
+                    ("Western Digital", "WDC", "数据中心硬盘与存储代表，关注云厂商资本开支。"),
+                ],
+            },
+            {
+                "name": "CPO/光通信",
+                "keywords": ["CPO", "co-packaged optics", "optical", "transceiver", "silicon photonics", "photonics", "Coherent", "Lumentum", "Marvell"],
+                "risk": "CPO 产业化节奏仍有不确定性，短期交易可能提前透支远期预期。",
+                "leaders": [
+                    ("Coherent", "COHR", "光通信与光器件代表，关注 AI 数据中心光互联需求。"),
+                    ("Lumentum", "LITE", "光器件和激光器代表，关注 CPO/NPO 产业化节奏。"),
+                    ("Marvell Technology", "MRVL", "AI 数据中心互联芯片代表，关注定制芯片和光互联产品。"),
+                ],
+            },
+            {
                 "name": "AI 基础设施",
-                "keywords": ["AI", "semiconductor", "GPU", "data center", "cloud"],
+                "keywords": ["AI", "semiconductor", "GPU", "accelerator", "data center", "cloud", "networking"],
                 "risk": "资本开支放缓或估值过高会导致明显回撤。",
                 "leaders": [
                     ("NVIDIA", "NVDA", "GPU 和 AI 加速计算龙头。"),
