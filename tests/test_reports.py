@@ -29,6 +29,37 @@ class MarketReportTests(unittest.TestCase):
                 challenger_symbols = {company.ticker for company in item.challengers}
                 self.assertFalse(leader_symbols & challenger_symbols)
 
+    def test_company_groups_are_theme_specific_not_market_padding(self):
+        ch_report = build_market_report(MARKET_CONFIGS["ch"], ["固态电池 硫化物电解质"]).to_dict()
+        solid_state = next(item for item in ch_report["horizons"]["day"] if item["name"] == "固态电池")
+        solid_state_symbols = {item["ticker"] for item in solid_state["leaders"] + solid_state["challengers"]}
+
+        self.assertIn("300750.SZ", solid_state_symbols)
+        self.assertNotIn("300308.SZ", solid_state_symbols)
+
+        us_report = build_market_report(MARKET_CONFIGS["us"], ["quantum IonQ Rigetti D-Wave QUBT"]).to_dict()
+        quantum = next(item for item in us_report["horizons"]["day"] if item["name"] == "量子计算")
+        quantum_symbols = {item["ticker"] for item in quantum["leaders"] + quantum["challengers"]}
+
+        self.assertIn("IONQ", quantum_symbols)
+        self.assertNotIn("NVDA", quantum_symbols)
+
+        hk_report = build_market_report(MARKET_CONFIGS["hk"], ["高股息 股息 dividend yield 中国移动 中国海洋石油"]).to_dict()
+        dividend = next(item for item in hk_report["horizons"]["month"] if item["name"] == "高股息央国企")
+        dividend_symbols = {item["ticker"] for item in dividend["leaders"] + dividend["challengers"]}
+
+        self.assertIn("1088.HK", dividend_symbols)
+        self.assertNotIn("0700.HK", dividend_symbols)
+
+    def test_us_quantum_challengers_are_pure_theme_not_platform_megacaps(self):
+        report = build_market_report(MARKET_CONFIGS["us"], ["quantum IonQ Rigetti D-Wave QUBT"]).to_dict()
+        quantum = next(item for item in report["horizons"]["day"] if item["name"] == "量子计算")
+        challenger_symbols = {item["ticker"] for item in quantum["challengers"]}
+
+        self.assertIn("IONQ", challenger_symbols)
+        self.assertNotIn("MSFT", challenger_symbols)
+        self.assertNotIn("AMZN", challenger_symbols)
+
     def test_store_saves_and_loads_latest_report(self):
         store = ReportStore(":memory:")
         report = build_market_report(MARKET_CONFIGS["us"], ["AI semiconductor ETF Fed rate"])
