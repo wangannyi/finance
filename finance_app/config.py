@@ -8,6 +8,10 @@ MARKET_CONFIGS = {
             "https://finance.sina.com.cn/stock/",
             "https://www.cls.cn/",
             "https://www.stcn.com/",
+            "https://www.cls.cn/detail/2411748",
+            "https://wap.eastmoney.com/a/202606253783247759.html",
+            "https://www.stcn.com/article/detail/3980016.html",
+            "https://www.stcn.com/article/detail/3978374.html",
         ],
         "directions": [
             {
@@ -71,6 +75,7 @@ MARKET_CONFIGS = {
             "https://www.hkex.com.hk/Market-Data/Securities-Prices/Equities?sc_lang=en",
             "https://www.aastocks.com/",
             "https://www.sfc.hk/en/",
+            "https://finance.yahoo.com/markets/stocks/articles/hong-kong-share-sales-hit-020257101.html",
         ],
         "directions": [
             {
@@ -140,6 +145,10 @@ MARKET_CONFIGS = {
             "https://www.idtechex.com/en/research-report/co-packaged-optics-cpo/1138",
             "https://futurumgroup.com/insights/coherent-q3-fy-2026-ai-data-center-demand-accelerates-optical-growth/",
             "https://www.micron.com/about/newsroom",
+            "https://www.businessinsider.com/ai-stocks-investing-ideas-bubble-valuations-ben-snider-goldman-sachs-2026-7",
+            "https://finance.yahoo.com/energy/articles/best-nuclear-ai-energy-stocks-120000687.html",
+            "https://www.ishares.com/us/insights/portfolio-insights/thematic-investing-2026-outlook",
+            "https://themesetfs.com/insights/6-blockbuster-investment-themes-to-watch-in-2026",
         ],
         "directions": [
             {

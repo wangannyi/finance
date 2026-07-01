@@ -16,6 +16,26 @@ PROACTIVE_THEMES = {
             "risk": "订单兑现节奏和制造业资本开支会影响短期表现。",
         },
         {
+            "name": "国防/航天",
+            "keywords": ["defense", "defense tech", "aerospace", "space", "SpaceX", "satellite", "military"],
+            "risk": "政策预算、估值和项目交付节奏会带来较大不确定性。",
+        },
+        {
+            "name": "稳定币/代币化",
+            "keywords": ["stablecoin", "stablecoins", "tokenization", "crypto treasury", "digital assets", "blockchain"],
+            "risk": "监管变化、流动性和加密资产价格波动会显著影响相关标的。",
+        },
+        {
+            "name": "贵金属/矿业",
+            "keywords": ["gold", "silver", "miners", "gold miners", "silver miners", "precious metals"],
+            "risk": "贵金属价格、实际利率和美元走势会影响主题表现。",
+        },
+        {
+            "name": "关键矿产/稀土",
+            "keywords": ["rare earth", "critical minerals", "strategic metals", "lithium", "copper", "uranium"],
+            "risk": "商品价格和政策扰动较大，周期属性强。",
+        },
+        {
             "name": "AI 存储/HBM",
             "keywords": ["HBM", "DRAM", "NAND", "memory", "SSD", "Micron", "SanDisk", "Western Digital"],
             "risk": "存储周期反转时，盈利和估值可能同步下修。",
@@ -52,8 +72,23 @@ PROACTIVE_THEMES = {
             "keywords": ["CPO", "光模块", "硅光", "光通信", "800G", "1.6T"],
             "risk": "高景气方向容易估值透支。",
         },
+        {
+            "name": "PCB/AI服务器链",
+            "keywords": ["PCB", "AI服务器", "服务器PCB", "高速板", "HDI", "玻璃基板"],
+            "risk": "订单集中度、扩产节奏和客户资本开支波动会影响兑现。",
+        },
+        {
+            "name": "模拟/功率半导体涨价",
+            "keywords": ["模拟芯片", "功率半导体", "涨价", "MLCC", "被动元件", "DrMOS"],
+            "risk": "涨价持续性取决于供需紧张程度，库存回补结束后可能降温。",
+        },
     ],
     "hk": [
+        {
+            "name": "AI 融资/新股",
+            "keywords": ["AI boom", "artificial intelligence", "fundraising", "share sales", "IPO", "equity capital markets", "新股", "融资"],
+            "risk": "新股和融资热度容易受市场情绪影响，上市后波动可能较大。",
+        },
         {
             "name": "存储/半导体映射",
             "keywords": ["存储", "半导体", "澜起科技", "兆易创新", "芯片"],
@@ -78,7 +113,7 @@ PROACTIVE_THEMES = {
 }
 
 
-def discover_themes(market: str, documents: list, limit: int = 5) -> list[dict]:
+def discover_themes(market: str, documents: list, limit: int = 8) -> list[dict]:
     discovered = []
     for theme in PROACTIVE_THEMES.get(market, []):
         evidence = _theme_evidence(theme, documents)

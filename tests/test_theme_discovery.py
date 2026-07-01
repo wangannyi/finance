@@ -27,6 +27,22 @@ class ThemeDiscoveryTests(unittest.TestCase):
         self.assertIn("AI 电力/核能", names)
         self.assertTrue(themes[0]["evidence_sources"])
 
+    def test_discovers_broader_current_theme_radar(self):
+        documents = [
+            {
+                "url": "https://example.com/themes",
+                "title": "AI infrastructure, defense and tokenization shape markets",
+                "text": "Infrastructure, defense, tokenization, stablecoins, nuclear energy, humanoid robotics, gold and silver miners are attracting flows.",
+                "error": None,
+            }
+        ]
+
+        names = [theme["name"] for theme in discover_themes("us", documents)]
+
+        self.assertIn("国防/航天", names)
+        self.assertIn("稳定币/代币化", names)
+        self.assertIn("贵金属/矿业", names)
+
     def test_discovers_chinese_market_themes(self):
         documents = [
             {
@@ -42,6 +58,37 @@ class ThemeDiscoveryTests(unittest.TestCase):
 
         self.assertIn("固态电池", names)
         self.assertIn("商业航天/低空经济", names)
+
+    def test_discovers_a_share_hot_chip_supply_chain_themes(self):
+        documents = [
+            {
+                "url": "https://example.com/a-share-hot",
+                "title": "A股热炒题材：CPO、PCB、存储芯片与模拟功率半导体涨价",
+                "text": "CPO概念、PCB概念、光模块、硅光、AI服务器、模拟芯片、功率半导体和MLCC涨价潮继续吸引资金关注。",
+                "error": None,
+            }
+        ]
+
+        names = [theme["name"] for theme in discover_themes("ch", documents)]
+
+        self.assertIn("CPO/光模块", names)
+        self.assertIn("PCB/AI服务器链", names)
+        self.assertIn("模拟/功率半导体涨价", names)
+
+    def test_discovers_hk_ai_fundraising_theme(self):
+        documents = [
+            {
+                "url": "https://example.com/hk",
+                "title": "Hong Kong share sales hit five-year high as AI boom fuels fundraising",
+                "text": "Hong Kong equity capital markets raised nearly $44 billion as artificial intelligence-related companies attracted investor demand.",
+                "error": None,
+            }
+        ]
+
+        themes = discover_themes("hk", documents)
+        names = [theme["name"] for theme in themes]
+
+        self.assertIn("AI 融资/新股", names)
 
 
 if __name__ == "__main__":
