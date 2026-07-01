@@ -1,12 +1,13 @@
 import json
 import mimetypes
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .akshare_provider import AkshareProvider
 from .candidates import build_candidate_pool
-from .market_data import get_company_metrics
+from .market_data import get_company_metrics, preload_company_metrics
 from .portfolio import build_default_portfolio_plan
 from .refresh_manager import RefreshManager
 from .storage import ReportStore
@@ -16,6 +17,57 @@ ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_DIR = ROOT / "public"
 DB_PATH = ROOT / "data" / "reports.sqlite3"
 REFRESH_MANAGER = RefreshManager(str(DB_PATH))
+
+
+class CompanyPreloadManager:
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self._status = {
+            "status": "idle",
+            "message": "等待预热",
+            "requested": 0,
+            "updated": 0,
+            "errors": [],
+        }
+
+    def start(self) -> dict:
+        with self._lock:
+            if self._thread and self._thread.is_alive():
+                return {**self._status, "message": "公司数据预热已在运行"}
+            self._status = {
+                "status": "running",
+                "message": "后台预热公司数据中",
+                "requested": 0,
+                "updated": 0,
+                "errors": [],
+            }
+            self._thread = threading.Thread(target=self._run, daemon=True)
+            self._thread.start()
+            return dict(self._status)
+
+    def status(self) -> dict:
+        with self._lock:
+            return dict(self._status)
+
+    def _run(self) -> None:
+        try:
+            result = preload_company_metrics(self.db_path)
+            with self._lock:
+                self._status = {"status": "complete", "message": "公司数据预热完成", **result}
+        except Exception as exc:  # pragma: no cover - defensive for background worker
+            with self._lock:
+                self._status = {
+                    "status": "error",
+                    "message": "公司数据预热失败",
+                    "requested": 0,
+                    "updated": 0,
+                    "errors": [{"error": str(exc)}],
+                }
+
+
+COMPANY_PRELOAD_MANAGER = CompanyPreloadManager(str(DB_PATH))
 
 
 class FinanceHandler(BaseHTTPRequestHandler):
@@ -66,6 +118,12 @@ class FinanceHandler(BaseHTTPRequestHandler):
                 return
             self._send_json(get_company_metrics(symbol, name=name, db_path=str(DB_PATH)))
             return
+        if parsed.path == "/api/preload-companies":
+            self._send_json(COMPANY_PRELOAD_MANAGER.start())
+            return
+        if parsed.path == "/api/preload-status":
+            self._send_json(COMPANY_PRELOAD_MANAGER.status())
+            return
         if parsed.path == "/api/refresh":
             self._send_json(REFRESH_MANAGER.start())
             return
@@ -84,6 +142,7 @@ class FinanceHandler(BaseHTTPRequestHandler):
 def run(host: str = "127.0.0.1", port: int = 8765) -> None:
     server = ThreadingHTTPServer((host, port), FinanceHandler)
     print(f"Local private finance dashboard: http://{host}:{port}")
+    COMPANY_PRELOAD_MANAGER.start()
     server.serve_forever()
 
 

@@ -1,4 +1,5 @@
 import unittest
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from finance_app.market_data import (
@@ -7,6 +8,7 @@ from finance_app.market_data import (
     normalize_yahoo_symbol,
     parse_eastmoney_fundamentals,
     parse_nasdaq_fundamentals,
+    report_companies,
 )
 from finance_app.storage import ReportStore
 
@@ -41,6 +43,84 @@ class MarketDataTests(unittest.TestCase):
 
         self.assertEqual(loaded["symbol"], "NVDA")
         self.assertEqual(loaded["trailing_pe"], 42.5)
+
+    def test_company_metrics_returns_cache_without_network_by_default(self):
+        store = ReportStore(":memory:")
+        store.save_company_metrics(
+            "NVDA",
+            {
+                "symbol": "NVDA",
+                "name": "NVIDIA",
+                "price": 120.0,
+                "fetched_at": "2026-07-01T00:00:00+00:00",
+            },
+        )
+
+        with (
+            patch("finance_app.market_data.fetch_quote") as fetch_quote,
+            patch("finance_app.market_data.fetch_chart") as fetch_chart,
+        ):
+            metrics = get_company_metrics("NVDA", db_path=":memory:", store=store)
+
+        self.assertEqual(metrics["price"], 120.0)
+        self.assertTrue(metrics["cache_hit"])
+        fetch_quote.assert_not_called()
+        fetch_chart.assert_not_called()
+
+    def test_company_metrics_can_force_refresh_cache(self):
+        store = ReportStore(":memory:")
+        store.save_company_metrics("NVDA", {"symbol": "NVDA", "price": 120.0})
+        chart = {
+            "meta": {"symbol": "NVDA", "regularMarketPrice": 130.0, "currency": "USD"},
+            "indicators": {"quote": [{"close": [120.0, 130.0]}]},
+        }
+
+        with (
+            patch("finance_app.market_data.fetch_quote", return_value={"regularMarketPrice": 131.0, "currency": "USD"}),
+            patch("finance_app.market_data.fetch_chart", return_value=chart),
+        ):
+            metrics = get_company_metrics("NVDA", db_path=":memory:", store=store, prefer_cache=False)
+
+        self.assertEqual(metrics["price"], 131.0)
+        self.assertFalse(metrics["cache_hit"])
+
+    def test_report_companies_deduplicates_visible_company_groups(self):
+        reports = [
+            {
+                "horizons": {
+                    "day": [
+                        {
+                            "leaders": [{"name": "NVIDIA", "ticker": "NVDA"}],
+                            "challengers": [{"name": "NVIDIA", "ticker": "NVDA"}, {"name": "Micron", "ticker": "MU"}],
+                        }
+                    ]
+                }
+            }
+        ]
+
+        companies = report_companies(reports)
+
+        self.assertEqual(companies, [("NVDA", "NVIDIA"), ("MU", "Micron")])
+
+    def test_preload_company_metrics_uses_cache_by_default(self):
+        from finance_app.market_data import preload_company_metrics
+
+        reports = [{"horizons": {"day": [{"leaders": [{"name": "NVIDIA", "ticker": "NVDA"}], "challengers": []}]}}]
+        with TemporaryDirectory() as tmpdir:
+            db_path = f"{tmpdir}/reports.sqlite3"
+            store = ReportStore(db_path)
+            store.save_company_metrics("NVDA", {"symbol": "NVDA", "price": 120.0})
+
+            with (
+                patch("finance_app.market_data.fetch_quote") as fetch_quote,
+                patch("finance_app.market_data.fetch_chart") as fetch_chart,
+            ):
+                result = preload_company_metrics(db_path, reports=reports)
+
+        self.assertEqual(result["requested"], 1)
+        self.assertEqual(result["updated"], 1)
+        fetch_quote.assert_not_called()
+        fetch_chart.assert_not_called()
 
     def test_company_metrics_falls_back_to_chart_meta_when_quote_is_blocked(self):
         chart = {

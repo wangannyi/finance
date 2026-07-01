@@ -1,6 +1,7 @@
 import json
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 from .models import utc_now_iso
@@ -220,9 +221,63 @@ def fetch_chart(symbol: str) -> dict:
     return results[0]
 
 
-def get_company_metrics(symbol: str, name: str = "", db_path: str = "data/reports.sqlite3") -> dict:
-    store = ReportStore(db_path)
+def report_companies(reports: list[dict]) -> list[tuple[str, str]]:
+    companies = []
+    seen = set()
+    for report in reports:
+        for items in report.get("horizons", {}).values():
+            for direction in items:
+                for group in ("leaders", "challengers"):
+                    for company in direction.get(group, []):
+                        symbol = company.get("ticker")
+                        if not symbol or symbol in seen:
+                            continue
+                        companies.append((symbol, company.get("name", "")))
+                        seen.add(symbol)
+    return companies
+
+
+def preload_company_metrics(
+    db_path: str = "data/reports.sqlite3",
+    reports: list[dict] | None = None,
+    max_workers: int = 4,
+    refresh_cached: bool = False,
+) -> dict:
+    reports = reports if reports is not None else ReportStore(db_path).get_latest_reports()
+    companies = report_companies(reports)
+    if not companies:
+        return {"requested": 0, "updated": 0, "errors": []}
+
+    errors = []
+    updated = 0
+
+    def load(company: tuple[str, str]) -> None:
+        symbol, name = company
+        get_company_metrics(symbol, name=name, db_path=db_path, prefer_cache=not refresh_cached)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(load, company) for company in companies]
+        for company, future in zip(companies, futures):
+            try:
+                future.result()
+                updated += 1
+            except Exception as exc:  # pragma: no cover - defensive; get_company_metrics normally absorbs errors
+                errors.append({"symbol": company[0], "error": str(exc)})
+
+    return {"requested": len(companies), "updated": updated, "errors": errors}
+
+
+def get_company_metrics(
+    symbol: str,
+    name: str = "",
+    db_path: str = "data/reports.sqlite3",
+    prefer_cache: bool = True,
+    store: ReportStore | None = None,
+) -> dict:
+    store = store or ReportStore(db_path)
     cached = store.get_company_metrics(symbol)
+    if cached is not None and prefer_cache:
+        return {**cached, "cache_hit": True}
 
     try:
         quote = {}
@@ -264,6 +319,7 @@ def get_company_metrics(symbol: str, name: str = "", db_path: str = "data/report
             "fetched_at": utc_now_iso(),
             "source": "; ".join(sources),
             "stale": False,
+            "cache_hit": False,
             "error": (
                 "Yahoo quote 接口暂时不可用，已尝试用备用公开接口补齐市值/PE/股息率；"
                 f"价格、涨跌幅和可用区间数据来自 chart endpoint。原始错误：{quote_error}"
@@ -277,6 +333,7 @@ def get_company_metrics(symbol: str, name: str = "", db_path: str = "data/report
     except Exception as exc:
         if cached is not None:
             cached["stale"] = True
+            cached["cache_hit"] = True
             cached["error"] = f"实时更新失败，显示缓存数据：{exc}"
             return cached
         return {
@@ -295,5 +352,6 @@ def get_company_metrics(symbol: str, name: str = "", db_path: str = "data/report
             "fetched_at": utc_now_iso(),
             "source": "Yahoo Finance public quote/chart endpoints",
             "stale": True,
+            "cache_hit": False,
             "error": str(exc),
         }

@@ -3,12 +3,21 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from .crawler import refresh_reports
+from .market_data import preload_company_metrics
 
 
 class RefreshManager:
-    def __init__(self, db_path: str, runner: Callable[[str], list[dict]] = refresh_reports):
+    def __init__(
+        self,
+        db_path: str,
+        runner: Callable[[str], list[dict]] = refresh_reports,
+        prewarmer: Callable[[str, list[dict]], dict] | None = None,
+    ):
         self.db_path = db_path
         self.runner = runner
+        self.prewarmer = prewarmer or (
+            lambda db_path, reports: preload_company_metrics(db_path, reports=reports, refresh_cached=True)
+        )
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self._status = {
@@ -17,6 +26,7 @@ class RefreshManager:
             "started_at": None,
             "finished_at": None,
             "saved_count": 0,
+            "preload": None,
             "error": None,
         }
 
@@ -30,6 +40,7 @@ class RefreshManager:
                 "started_at": _now_iso(),
                 "finished_at": None,
                 "saved_count": 0,
+                "preload": None,
                 "error": None,
             }
             self._thread = threading.Thread(target=self._run, daemon=True)
@@ -43,6 +54,7 @@ class RefreshManager:
     def _run(self) -> None:
         try:
             reports = self.runner(self.db_path)
+            preload = self.prewarmer(self.db_path, reports)
             with self._lock:
                 self._status.update(
                     {
@@ -50,6 +62,7 @@ class RefreshManager:
                         "message": "刷新完成",
                         "finished_at": _now_iso(),
                         "saved_count": len(reports),
+                        "preload": preload,
                         "error": None,
                     }
                 )

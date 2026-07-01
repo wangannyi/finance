@@ -342,6 +342,15 @@ async function loadCoreData() {
   renderReports(reports);
   renderPortfolio(portfolio);
   renderCandidates(candidates);
+  warmCompanyCache();
+}
+
+async function warmCompanyCache() {
+  try {
+    await fetch("/api/preload-companies");
+  } catch {
+    // Company details still load on demand if background preload is unavailable.
+  }
 }
 
 async function loadSecondaryData() {

@@ -9,13 +9,18 @@ class RefreshManagerTests(unittest.TestCase):
     def test_start_returns_while_refresh_runs_in_background(self):
         release = threading.Event()
         calls = []
+        prewarmed = []
 
         def runner(db_path):
             calls.append(db_path)
             release.wait(timeout=1)
             return [{"market": "ch"}]
 
-        manager = RefreshManager("test.sqlite3", runner=runner)
+        def prewarmer(db_path, reports):
+            prewarmed.append((db_path, reports))
+            return {"requested": 1, "updated": 1, "errors": []}
+
+        manager = RefreshManager("test.sqlite3", runner=runner, prewarmer=prewarmer)
 
         started = manager.start()
         duplicate = manager.start()
@@ -34,6 +39,8 @@ class RefreshManagerTests(unittest.TestCase):
 
         self.assertEqual(manager.status()["status"], "complete")
         self.assertEqual(manager.status()["saved_count"], 1)
+        self.assertEqual(manager.status()["preload"], {"requested": 1, "updated": 1, "errors": []})
+        self.assertEqual(prewarmed, [("test.sqlite3", [{"market": "ch"}])])
 
 
 if __name__ == "__main__":
