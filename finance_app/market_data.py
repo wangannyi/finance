@@ -100,7 +100,7 @@ def get_company_metrics(symbol: str, name: str = "", db_path: str = "data/report
         payload = {
             "symbol": symbol,
             "yahoo_symbol": normalize_yahoo_symbol(symbol),
-            "name": name or quote.get("longName") or quote.get("shortName") or meta.get("symbol") or symbol,
+            "name": name or quote.get("longName") or quote.get("shortName") or meta.get("longName") or meta.get("shortName") or meta.get("symbol") or symbol,
             "price": quote.get("regularMarketPrice") or meta.get("regularMarketPrice"),
             "previous_close": meta.get("chartPreviousClose"),
             "currency": quote.get("currency") or meta.get("currency"),
@@ -108,13 +108,18 @@ def get_company_metrics(symbol: str, name: str = "", db_path: str = "data/report
             "trailing_pe": quote.get("trailingPE"),
             "forward_pe": quote.get("forwardPE"),
             "dividend_yield": quote.get("dividendYield"),
-            "fifty_two_week_high": quote.get("fiftyTwoWeekHigh"),
-            "fifty_two_week_low": quote.get("fiftyTwoWeekLow"),
+            "fifty_two_week_high": quote.get("fiftyTwoWeekHigh") or meta.get("fiftyTwoWeekHigh"),
+            "fifty_two_week_low": quote.get("fiftyTwoWeekLow") or meta.get("fiftyTwoWeekLow"),
             "returns": compute_returns(closes),
             "fetched_at": utc_now_iso(),
             "source": "Yahoo Finance public chart endpoint; quote fields when available",
             "stale": False,
-            "error": f"部分估值字段暂不可用：{quote_error}" if quote_error else None,
+            "error": (
+                "Yahoo quote 接口暂时不可用，市值/PE/股息率等估值字段可能缺失；"
+                f"价格、涨跌幅和可用区间数据来自 chart endpoint。原始错误：{quote_error}"
+                if quote_error
+                else None
+            ),
         }
         store.save_company_metrics(symbol, payload)
         return payload
