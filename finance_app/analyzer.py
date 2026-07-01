@@ -57,12 +57,16 @@ def _evidence_sources(direction: dict, documents: Iterable, limit: int = 3) -> l
     return sources
 
 
+def _directions_for_horizon(market_config: dict, horizon: str) -> list[dict]:
+    return market_config.get("horizon_directions", {}).get(horizon) or market_config["directions"]
+
+
 def build_market_report(market_config: dict, documents: Iterable[str], market_code: str | None = None) -> MarketReport:
     documents = list(documents)
     horizons = {}
     for horizon in ("day", "week", "month"):
         scored = []
-        for index, direction in enumerate(market_config["directions"]):
+        for index, direction in enumerate(_directions_for_horizon(market_config, horizon)):
             score = _score_direction(direction, documents, horizon, index)
             leaders = [
                 Leader(name=name, ticker=ticker, detail=detail)

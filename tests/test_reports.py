@@ -81,6 +81,86 @@ class MarketReportTests(unittest.TestCase):
 
         self.assertIn("量子计算", names)
 
+    def test_uses_horizon_specific_direction_pools(self):
+        market_config = {
+            "code": "demo",
+            "name": "测试市场",
+            "summary": "测试不同周期粒度。",
+            "sources": [],
+            "directions": [],
+            "horizon_directions": {
+                "day": [
+                    {
+                        "name": "CPO商业化催化",
+                        "keywords": ["CPO", "商业化"],
+                        "risk": "短线催化波动大。",
+                        "leaders": [("日度龙头", "DAY", "日度交易线索。")],
+                    }
+                ],
+                "week": [
+                    {
+                        "name": "光模块订单链",
+                        "keywords": ["光模块", "订单"],
+                        "risk": "订单兑现需要验证。",
+                        "leaders": [("周度龙头", "WEEK", "周度产业链线索。")],
+                    }
+                ],
+                "month": [
+                    {
+                        "name": "AI算力基础设施",
+                        "keywords": ["AI", "算力"],
+                        "risk": "估值和资本开支风险。",
+                        "leaders": [("月度龙头", "MONTH", "月度主线配置。")],
+                    }
+                ],
+            },
+        }
+
+        report = build_market_report(
+            market_config,
+            ["AI 算力 光模块 订单 CPO 商业化"],
+        ).to_dict()
+
+        self.assertEqual(report["horizons"]["day"][0]["name"], "CPO商业化催化")
+        self.assertEqual(report["horizons"]["week"][0]["name"], "光模块订单链")
+        self.assertEqual(report["horizons"]["month"][0]["name"], "AI算力基础设施")
+
+    def test_a_share_config_uses_finer_granularity_for_shorter_horizons(self):
+        report = build_market_report(
+            MARKET_CONFIGS["ch"],
+            [
+                "CPO 商业化 光模块 资金流入 存储芯片 模拟芯片 功率半导体 涨价 PCB AI服务器",
+                "AI 算力 半导体国产替代 创新药 红利 机器人",
+            ],
+        ).to_dict()
+
+        day_names = [item["name"] for item in report["horizons"]["day"]]
+        week_names = [item["name"] for item in report["horizons"]["week"]]
+        month_names = [item["name"] for item in report["horizons"]["month"]]
+
+        self.assertNotEqual(day_names, week_names)
+        self.assertNotEqual(week_names, month_names)
+        self.assertIn("CPO商业化/光模块资金", day_names)
+        self.assertIn("PCB/AI服务器链", week_names)
+        self.assertIn("AI 算力硬件", month_names)
+
+    def test_all_market_configs_keep_horizon_names_distinct(self):
+        documents = [
+            "CPO 光模块 PCB AI服务器 存储芯片 模拟芯片 功率半导体 涨价 机器人",
+            "AI boom fundraising share sales IPO dividend buyback biotech semiconductor chip",
+            "Micron HBM CPO Coherent nuclear grid defense SpaceX stablecoin tokenization AI data center",
+        ]
+
+        for market_code, config in MARKET_CONFIGS.items():
+            with self.subTest(market=market_code):
+                report = build_market_report(config, documents, market_code=market_code).to_dict()
+                day_names = [item["name"] for item in report["horizons"]["day"]]
+                week_names = [item["name"] for item in report["horizons"]["week"]]
+                month_names = [item["name"] for item in report["horizons"]["month"]]
+
+                self.assertNotEqual(day_names, week_names)
+                self.assertNotEqual(week_names, month_names)
+
 
 if __name__ == "__main__":
     unittest.main()
