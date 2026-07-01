@@ -171,11 +171,12 @@ MARKET_CONFIGS = {
             },
             {
                 "name": "CPO/光通信",
-                "keywords": ["CPO", "co-packaged optics", "optical", "transceiver", "silicon photonics", "photonics", "Coherent", "Lumentum", "Marvell"],
+                "keywords": ["CPO", "co-packaged optics", "optical", "transceiver", "silicon photonics", "photonics", "fiber", "Corning", "Coherent", "Lumentum", "Marvell"],
                 "risk": "CPO 产业化节奏仍有不确定性，短期交易可能提前透支远期预期。",
                 "leaders": [
                     ("Coherent", "COHR", "光通信与光器件代表，关注 AI 数据中心光互联需求。"),
                     ("Lumentum", "LITE", "光器件和激光器代表，关注 CPO/NPO 产业化节奏。"),
+                    ("Corning", "GLW", "光纤、玻璃和数据中心光连接材料代表，关注 AI 数据中心互联需求。"),
                     ("Marvell Technology", "MRVL", "AI 数据中心互联芯片代表，关注定制芯片和光互联产品。"),
                 ],
             },
@@ -210,7 +211,7 @@ MARKET_CONFIGS = {
                 ],
             },
             {
-                "name": "金融与利率交易",
+                "name": "金融/利率敏感资产",
                 "keywords": ["Fed", "rate", "yield", "bank", "inflation"],
                 "risk": "利率路径判断错误和信用风险上升。",
                 "leaders": [
@@ -220,7 +221,7 @@ MARKET_CONFIGS = {
                 ],
             },
             {
-                "name": "宽基 ETF",
+                "name": "美股宽基指数",
                 "keywords": ["ETF", "S&P 500", "Nasdaq", "index", "fund"],
                 "risk": "指数高集中度导致回撤时分散效果变弱。",
                 "leaders": [
@@ -243,7 +244,7 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
     "month": MARKET_CONFIGS["ch"]["directions"],
     "week": [
         {
-            "name": "CPO/光模块",
+            "name": "AI光互联/CPO光模块",
             "keywords": ["CPO", "光模块", "硅光", "光通信", "800G", "1.6T"],
             "risk": "产业链景气较高，需防范订单兑现不及预期和估值透支。",
             "leaders": [
@@ -253,7 +254,7 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "PCB/AI服务器链",
+            "name": "AI服务器PCB/玻璃基板",
             "keywords": ["PCB", "AI服务器", "服务器", "高速板", "HDI", "玻璃基板"],
             "risk": "订单、产能和价格需要持续跟踪，短期涨幅大后波动会放大。",
             "leaders": [
@@ -307,7 +308,7 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "创新药BD/出海",
+            "name": "创新药BD出海",
             "keywords": ["创新药", "BD", "license-out", "出海", "授权", "临床"],
             "risk": "临床和授权进展不确定，消息驱动下波动较大。",
             "leaders": [
@@ -319,7 +320,7 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
     ],
     "day": [
         {
-            "name": "CPO商业化/光模块资金",
+            "name": "CPO/硅光光模块",
             "keywords": ["CPO", "商业化", "光模块", "资金流入", "主力资金"],
             "risk": "日内交易受资金情绪影响大，追高回撤风险高。",
             "leaders": [
@@ -329,7 +330,7 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "模拟/功率半导体涨价",
+            "name": "模拟/功率半导体",
             "keywords": ["模拟芯片", "功率半导体", "涨价", "MLCC", "被动元件"],
             "risk": "涨价题材持续性弱于供需验证时容易快速降温。",
             "leaders": [
@@ -339,7 +340,7 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "存储芯片资金流入",
+            "name": "存储芯片",
             "keywords": ["存储芯片", "存储", "资金流入", "DRAM", "NAND"],
             "risk": "资金驱动题材可能快速轮动，需结合成交和公告验证。",
             "leaders": [
@@ -373,7 +374,7 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
             "leaders": [],
         },
         {
-            "name": "PCB涨价/玻璃基板",
+            "name": "AI服务器PCB/玻璃基板",
             "keywords": ["PCB", "涨价", "玻璃基板", "覆铜板", "AI服务器"],
             "risk": "短线催化依赖涨价扩散和订单确认，波动较大。",
             "leaders": [
@@ -383,7 +384,7 @@ MARKET_CONFIGS["ch"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "机器人降价/新品催化",
+            "name": "人形机器人",
             "keywords": ["机器人", "人形机器人", "降价", "新品", "灵巧手"],
             "risk": "产品发布和降价容易形成短期交易，业绩兑现仍早。",
             "leaders": [
@@ -399,8 +400,8 @@ MARKET_CONFIGS["hk"]["horizon_directions"] = {
     "month": MARKET_CONFIGS["hk"]["directions"],
     "week": [
         {
-            "name": "AI融资/新股链",
-            "keywords": ["AI boom", "artificial intelligence", "fundraising", "IPO", "share sales", "融资"],
+            "name": "AI软件/云服务",
+            "keywords": ["AI boom", "artificial intelligence", "AI", "cloud", "云计算", "人工智能"],
             "risk": "新股热度受市场情绪影响大，上市后波动可能较高。",
             "leaders": [
                 ("阿里巴巴-W", "9988.HK", "港股 AI 和云计算代表。"),
@@ -409,7 +410,7 @@ MARKET_CONFIGS["hk"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "中资券商/港交所",
+            "name": "港交所与中资券商",
             "keywords": ["share sales", "equity capital markets", "IPO", "成交", "融资"],
             "risk": "成交和 IPO 周期波动明显，受风险偏好影响大。",
             "leaders": [
@@ -429,7 +430,7 @@ MARKET_CONFIGS["hk"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "创新药授权出海",
+            "name": "创新药BD出海",
             "keywords": ["biotech", "pharma", "license-out", "BD", "临床", "创新药"],
             "risk": "临床和授权节点不确定，单日波动可能较大。",
             "leaders": [
@@ -439,7 +440,7 @@ MARKET_CONFIGS["hk"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "AI硬件/半导体映射",
+            "name": "AI硬件/半导体",
             "keywords": ["AI", "semiconductor", "chip", "半导体", "芯片", "硬件"],
             "risk": "港股映射标的弹性和流动性差异大。",
             "leaders": [
@@ -451,8 +452,8 @@ MARKET_CONFIGS["hk"]["horizon_directions"] = {
     ],
     "day": [
         {
-            "name": "AI新股/融资情绪",
-            "keywords": ["AI boom", "fundraising", "share sales", "IPO", "人工智能"],
+            "name": "AI应用/云服务",
+            "keywords": ["AI boom", "artificial intelligence", "AI", "cloud", "人工智能", "云"],
             "risk": "短线受新闻和资金情绪驱动，不宜替代基本面判断。",
             "leaders": [
                 ("香港交易所", "0388.HK", "融资活跃度直接受益标的。"),
@@ -461,17 +462,17 @@ MARKET_CONFIGS["hk"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "南向高股息买盘",
+            "name": "港股高股息",
             "keywords": ["南向资金", "股息", "回购", "dividend", "yield"],
             "risk": "短线买盘变化和除息安排会影响价格表现。",
             "leaders": [
-                ("中国移动", "0941.HK", "南向高股息核心。"),
+                ("中国移动", "0941.HK", "港股高股息核心。"),
                 ("中国海洋石油", "0883.HK", "能源高股息代表。"),
                 ("汇丰控股", "0005.HK", "金融高股息代表。"),
             ],
         },
         {
-            "name": "创新药临床/BD催化",
+            "name": "创新药/生物科技",
             "keywords": ["临床", "BD", "license-out", "创新药", "biotech"],
             "risk": "事件驱动波动大，需核验公告质量。",
             "leaders": [
@@ -481,7 +482,7 @@ MARKET_CONFIGS["hk"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "互联网回购/业绩催化",
+            "name": "互联网平台",
             "keywords": ["buyback", "earnings", "platform", "回购", "业绩"],
             "risk": "回购和业绩催化若低于预期，估值修复会受阻。",
             "leaders": [
@@ -491,7 +492,7 @@ MARKET_CONFIGS["hk"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "港股半导体弹性",
+            "name": "港股半导体",
             "keywords": ["semiconductor", "chip", "半导体", "芯片", "AI"],
             "risk": "消息驱动和流动性会放大日内波动。",
             "leaders": [
@@ -513,7 +514,7 @@ MARKET_CONFIGS["us"]["horizon_directions"] = {
     ],
     "week": [
         {
-            "name": "AI存储/HBM价格链",
+            "name": "HBM/存储",
             "keywords": ["HBM", "DRAM", "NAND", "memory", "Micron", "SanDisk", "Western Digital"],
             "risk": "存储价格和订单变化会带来较强周期波动。",
             "leaders": [
@@ -523,17 +524,18 @@ MARKET_CONFIGS["us"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "CPO/硅光光互联",
-            "keywords": ["CPO", "co-packaged optics", "silicon photonics", "optical transceiver", "Coherent", "Lumentum"],
+            "name": "CPO/硅光产业链",
+            "keywords": ["CPO", "co-packaged optics", "silicon photonics", "optical transceiver", "fiber optic", "Corning", "Coherent", "Lumentum"],
             "risk": "产业化进度和订单兑现仍需持续验证。",
             "leaders": [
                 ("Coherent", "COHR", "AI 数据中心光器件代表。"),
                 ("Lumentum", "LITE", "光器件和激光器代表。"),
+                ("Corning", "GLW", "AI 数据中心光纤和玻璃材料代表。"),
                 ("Marvell Technology", "MRVL", "AI 互联芯片代表。"),
             ],
         },
         {
-            "name": "AI电力/核能链",
+            "name": "AI电力/核能",
             "keywords": ["AI power", "nuclear", "grid", "utilities", "energy infrastructure", "data center power"],
             "risk": "项目周期、政策和利率会影响估值。",
             "leaders": [
@@ -543,7 +545,7 @@ MARKET_CONFIGS["us"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "国防航天/SpaceX映射",
+            "name": "国防航天",
             "keywords": ["defense", "aerospace", "space", "SpaceX", "satellite", "military"],
             "risk": "预算和项目节点不确定，估值容易受消息扰动。",
             "leaders": [
@@ -553,7 +555,7 @@ MARKET_CONFIGS["us"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "稳定币/代币化金融",
+            "name": "稳定币与代币化金融",
             "keywords": ["stablecoin", "tokenization", "digital assets", "blockchain", "crypto"],
             "risk": "监管和加密资产波动会显著影响交易热度。",
             "leaders": [
@@ -565,7 +567,7 @@ MARKET_CONFIGS["us"]["horizon_directions"] = {
     ],
     "day": [
         {
-            "name": "MU/HBM财报与涨价",
+            "name": "HBM/存储",
             "keywords": ["Micron", "MU", "HBM", "DRAM", "price", "memory"],
             "risk": "财报和价格预期交易波动极高。",
             "leaders": [
@@ -575,17 +577,18 @@ MARKET_CONFIGS["us"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "COHR/LITE光通信订单",
-            "keywords": ["Coherent", "Lumentum", "CPO", "optical transceiver", "silicon photonics"],
+            "name": "AI光通信",
+            "keywords": ["Coherent", "Lumentum", "Corning", "CPO", "optical transceiver", "silicon photonics", "fiber optic"],
             "risk": "订单传闻和估值变化会造成短线大幅波动。",
             "leaders": [
                 ("Coherent", "COHR", "光通信订单弹性标的。"),
                 ("Lumentum", "LITE", "光器件弹性标的。"),
+                ("Corning", "GLW", "光纤和数据中心连接材料弹性标的。"),
                 ("Marvell Technology", "MRVL", "AI 互联芯片代表。"),
             ],
         },
         {
-            "name": "核电/电网订单催化",
+            "name": "AI电力/电网",
             "keywords": ["nuclear", "grid", "utilities", "energy infrastructure", "AI power"],
             "risk": "政策和项目新闻驱动，兑现周期长。",
             "leaders": [
@@ -595,7 +598,7 @@ MARKET_CONFIGS["us"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "国防科技消息催化",
+            "name": "国防科技",
             "keywords": ["defense", "SpaceX", "satellite", "military", "aerospace"],
             "risk": "预算和合同消息可能快速反转。",
             "leaders": [
@@ -605,7 +608,7 @@ MARKET_CONFIGS["us"]["horizon_directions"] = {
             ],
         },
         {
-            "name": "稳定币监管/交易量",
+            "name": "稳定币/代币化金融",
             "keywords": ["stablecoin", "tokenization", "crypto", "digital assets", "blockchain"],
             "risk": "监管措辞和币价波动会放大日内表现。",
             "leaders": [

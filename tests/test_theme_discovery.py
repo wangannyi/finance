@@ -71,9 +71,9 @@ class ThemeDiscoveryTests(unittest.TestCase):
 
         names = [theme["name"] for theme in discover_themes("ch", documents)]
 
-        self.assertIn("CPO/光模块", names)
-        self.assertIn("PCB/AI服务器链", names)
-        self.assertIn("模拟/功率半导体涨价", names)
+        self.assertIn("AI光互联/CPO光模块", names)
+        self.assertIn("AI服务器PCB/玻璃基板", names)
+        self.assertIn("模拟/功率半导体", names)
 
     def test_discovers_a_share_semiconductor_material_micro_themes(self):
         documents = [
@@ -105,7 +105,7 @@ class ThemeDiscoveryTests(unittest.TestCase):
         themes = discover_themes("hk", documents)
         names = [theme["name"] for theme in themes]
 
-        self.assertIn("AI 融资/新股", names)
+        self.assertIn("AI软件/云服务", names)
 
 
 if __name__ == "__main__":

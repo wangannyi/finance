@@ -47,6 +47,24 @@ class CandidatePoolTests(unittest.TestCase):
         self.assertIn("高波动", by_theme["CPO/光通信"]["risk_tags"])
         self.assertIn("高波动", by_theme["AI 存储/HBM"]["risk_tags"])
 
+    def test_us_candidate_pool_prioritizes_sensitive_ai_supply_chain_over_platform_megacaps(self):
+        report = build_market_report(
+            MARKET_CONFIGS["us"],
+            [
+                "AI cloud platform Microsoft Apple Meta earnings software",
+                "Micron MU HBM DRAM NAND memory price SanDisk Western Digital storage",
+                "Corning Coherent Lumentum CPO optical transceiver silicon photonics fiber optic",
+            ],
+        ).to_dict()
+
+        pool = build_candidate_pool([report], build_default_portfolio_plan())
+        symbols = [item["symbol"] for item in pool["candidates"]]
+
+        self.assertLess(symbols.index("MU"), symbols.index("MSFT"))
+        self.assertLess(symbols.index("SNDK"), symbols.index("AAPL"))
+        self.assertLess(symbols.index("GLW"), symbols.index("META"))
+        self.assertLess(symbols.index("GLW"), symbols.index("AVGO"))
+
 
 if __name__ == "__main__":
     unittest.main()

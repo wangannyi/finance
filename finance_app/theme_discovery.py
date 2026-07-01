@@ -68,17 +68,17 @@ PROACTIVE_THEMES = {
             "risk": "价格周期和供需变化对盈利影响大。",
         },
         {
-            "name": "CPO/光模块",
+            "name": "AI光互联/CPO光模块",
             "keywords": ["CPO", "光模块", "硅光", "光通信", "800G", "1.6T"],
             "risk": "高景气方向容易估值透支。",
         },
         {
-            "name": "PCB/AI服务器链",
+            "name": "AI服务器PCB/玻璃基板",
             "keywords": ["PCB", "AI服务器", "服务器PCB", "高速板", "HDI", "玻璃基板"],
             "risk": "订单集中度、扩产节奏和客户资本开支波动会影响兑现。",
         },
         {
-            "name": "模拟/功率半导体涨价",
+            "name": "模拟/功率半导体",
             "keywords": ["模拟芯片", "功率半导体", "涨价", "MLCC", "被动元件", "DrMOS"],
             "risk": "涨价持续性取决于供需紧张程度，库存回补结束后可能降温。",
         },
@@ -115,12 +115,12 @@ PROACTIVE_THEMES = {
     ],
     "hk": [
         {
-            "name": "AI 融资/新股",
-            "keywords": ["AI boom", "artificial intelligence", "fundraising", "share sales", "IPO", "equity capital markets", "新股", "融资"],
+            "name": "AI软件/云服务",
+            "keywords": ["AI boom", "artificial intelligence", "AI", "cloud", "云计算", "人工智能"],
             "risk": "新股和融资热度容易受市场情绪影响，上市后波动可能较大。",
         },
         {
-            "name": "存储/半导体映射",
+            "name": "存储/半导体",
             "keywords": ["存储", "半导体", "澜起科技", "兆易创新", "芯片"],
             "risk": "港股相关标的流动性和估值弹性差异较大。",
         },

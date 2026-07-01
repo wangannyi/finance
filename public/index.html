@@ -19,40 +19,12 @@
     </header>
 
     <main>
-      <section class="allocation">
-        <div>
-          <span>A 股</span>
-          <strong>30 万</strong>
-          <small>ch 小帮手</small>
+      <section class="insight-panel">
+        <div class="section-head">
+          <h2>今日决策摘要</h2>
+          <span id="insightUpdated">等待数据</span>
         </div>
-        <div>
-          <span>港股</span>
-          <strong>10 万</strong>
-          <small>hk 小帮手</small>
-        </div>
-        <div>
-          <span>美股</span>
-          <strong>10 万</strong>
-          <small>us 小帮手</small>
-        </div>
-      </section>
-
-      <section class="planning-grid">
-        <section class="portfolio-panel">
-          <div class="section-head">
-            <h2>组合规划</h2>
-            <span>50w / 3:1:1</span>
-          </div>
-          <div id="portfolioPlan" class="portfolio-plan"></div>
-        </section>
-
-        <section class="data-panel">
-          <div class="section-head">
-            <h2>增强数据源</h2>
-            <button id="loadSnapshotBtn" type="button">加载快照</button>
-          </div>
-          <div id="dataSnapshot" class="data-snapshot"></div>
-        </section>
+        <div id="decisionSummary" class="decision-summary"></div>
       </section>
 
       <section class="controls" aria-label="市场筛选">
@@ -65,7 +37,12 @@
       <section class="candidate-panel">
         <div class="section-head">
           <h2>候选池与持仓前检查</h2>
-          <span id="candidateLimit">按风险护栏生成</span>
+          <div class="section-actions">
+            <span id="candidateLimit">按风险护栏生成</span>
+            <button id="candidateToggle" class="ghost-button" type="button" aria-expanded="false" aria-controls="candidatePool">
+              展开
+            </button>
+          </div>
         </div>
         <div id="candidatePool" class="candidate-pool"></div>
       </section>

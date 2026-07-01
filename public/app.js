@@ -6,6 +6,9 @@ const labels = {
 
 let selectedMarket = "all";
 let currentReports = [];
+let currentCandidatePool = { candidates: [], limits: {} };
+let candidateCollapsed = true;
+let candidateMetricsRequestId = 0;
 
 function formatNumber(value) {
   if (value === null || value === undefined) return "暂无数据";
@@ -168,41 +171,75 @@ function renderDiscoveries(discoveredThemes) {
     </section>`;
 }
 
-function renderPortfolio(plan) {
-  const container = document.querySelector("#portfolioPlan");
-  const marketRows = Object.entries(plan.markets || {})
-    .map(
-      ([market, item]) => `
-        <div class="portfolio-market">
-          <span>${item.name}</span>
-          <strong>${formatMarketCap(item.target_amount, "CNY")}</strong>
-          <small>${(item.target_ratio * 100).toFixed(0)}% · ${item.role}</small>
-        </div>`,
-    )
-    .join("");
+function flattenDirections(reports) {
+  return reports.flatMap((report) =>
+    ["day", "week", "month"].flatMap((horizon) =>
+      (report.horizons?.[horizon] || []).map((direction) => ({
+        ...direction,
+        horizon,
+        market: report.market,
+        marketName: report.market_name,
+        generatedAt: report.generated_at,
+      })),
+    ),
+  );
+}
 
-  const checks = (plan.risk_checks || []).map((item) => `<li>${item}</li>`).join("");
-  const questions = (plan.questions || []).map((item) => `<li>${item}</li>`).join("");
+function renderDecisionSummary(plan, reports, pool) {
+  const container = document.querySelector("#decisionSummary");
+  const updated = document.querySelector("#insightUpdated");
+  const candidates = pool.candidates || [];
+  const directions = flattenDirections(reports);
+  const topDirection = directions.sort((a, b) => (b.score || 0) - (a.score || 0))[0];
+  const latestTime = reports
+    .map((report) => report.generated_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const dayThemes = reports.reduce((sum, report) => sum + (report.horizons?.day || []).length, 0);
+  const highRiskCount = candidates.filter((item) => (item.risk_tags || []).some((tag) => tag.includes("高波动"))).length;
+  const singleLimit = plan.guardrails?.max_single_position_amount;
+  const themeLimit = plan.guardrails?.max_theme_amount;
+
+  updated.textContent = latestTime ? `更新于 ${formatTime(latestTime)}` : "等待更新";
+
+  if (!reports.length) {
+    container.innerHTML = '<div class="empty">暂无报告。点击“立即更新”生成今日市场摘要。</div>';
+    return;
+  }
 
   container.innerHTML = `
-    <div class="portfolio-markets">${marketRows}</div>
-    <div class="guardrail-row">
-      <div><span>单标的上限</span><strong>${formatMarketCap(plan.guardrails.max_single_position_amount, "CNY")}</strong></div>
-      <div><span>单主题上限</span><strong>${formatMarketCap(plan.guardrails.max_theme_amount, "CNY")}</strong></div>
-      <div><span>建议分批</span><strong>${plan.guardrails.suggested_batches} 次</strong></div>
+    <div class="summary-grid">
+      <div class="summary-tile focus-tile">
+        <span>当前最强线索</span>
+        <strong>${topDirection ? topDirection.name : "暂无方向"}</strong>
+        <small>${topDirection ? `${topDirection.marketName} · ${labels[topDirection.horizon]} · 热度 ${topDirection.score}` : "等待刷新"}</small>
+      </div>
+      <div class="summary-tile">
+        <span>今日可跟踪主题</span>
+        <strong>${dayThemes} 个</strong>
+        <small>A 股 / 港股 / 美股短线方向合计</small>
+      </div>
+      <div class="summary-tile">
+        <span>候选池</span>
+        <strong>${candidates.length} 个</strong>
+        <small>${highRiskCount} 个高波动，先观察再分批</small>
+      </div>
+      <div class="summary-tile">
+        <span>风险护栏</span>
+        <strong>${formatMarketCap(singleLimit, "CNY")}</strong>
+        <small>单标的上限；单主题上限 ${formatMarketCap(themeLimit, "CNY")}</small>
+      </div>
     </div>
-    <div class="check-list">
-      <strong>买入前检查</strong>
-      <ul>${checks}</ul>
-    </div>
-    <div class="check-list muted-list">
-      <strong>仍需你确认</strong>
-      <ul>${questions}</ul>
+    <div class="summary-action">
+      <strong>下一步：</strong>
+      先看“候选池与持仓前检查”，再展开各市场排名前 3 的证据来源。没有公告、财报或估值验证前，不把热点当买入信号。
     </div>`;
 }
 
 function renderDataSnapshot(snapshot) {
   const container = document.querySelector("#dataSnapshot");
+  if (!container) return;
   const status = snapshot.status || {};
   const aShareCount = (snapshot.a_share || []).length;
   const hkCount = (snapshot.hk || []).length;
@@ -230,21 +267,30 @@ function renderDataSnapshot(snapshot) {
 }
 
 function renderSnapshotLoading() {
-  document.querySelector("#dataSnapshot").innerHTML = '<div class="empty compact-empty">行情快照加载中...</div>';
+  const container = document.querySelector("#dataSnapshot");
+  if (container) container.innerHTML = '<div class="empty compact-empty">行情快照加载中...</div>';
 }
 
 function renderSnapshotIdle() {
-  document.querySelector("#dataSnapshot").innerHTML = '<div class="empty compact-empty">行情快照按需加载，不影响首屏速度。</div>';
+  const container = document.querySelector("#dataSnapshot");
+  if (container) container.innerHTML = '<div class="empty compact-empty">行情快照按需加载，不影响首屏速度。</div>';
 }
 
 function renderCandidates(pool) {
+  currentCandidatePool = pool;
   const container = document.querySelector("#candidatePool");
   const limit = document.querySelector("#candidateLimit");
-  const candidates = pool.candidates || [];
-  limit.textContent = `单标的上限 ${formatMarketCap(pool.limits?.max_single_position_amount, "CNY")}`;
+  const panel = document.querySelector(".candidate-panel");
+  const candidates =
+    selectedMarket === "all"
+      ? pool.candidates || []
+      : (pool.candidates || []).filter((item) => item.market === selectedMarket);
+  limit.textContent = `${candidateCollapsed ? "折叠显示前排" : "完整显示"} · 共 ${candidates.length} 个 · 单标的上限 ${formatMarketCap(pool.limits?.max_single_position_amount, "CNY")}`;
+  panel.classList.toggle("is-collapsed", candidateCollapsed);
+  updateCandidateToggle();
 
   if (!candidates.length) {
-    container.innerHTML = '<div class="empty">暂无候选标的。先点击“立即更新”生成三市场报告。</div>';
+    container.innerHTML = '<div class="empty">当前市场暂无候选标的。先点击“立即更新”生成最新报告。</div>';
     return;
   }
 
@@ -263,12 +309,44 @@ function renderCandidates(pool) {
               <strong>${item.action}</strong>
               <span>${formatMarketCap(item.max_observation_amount, "CNY")}</span>
             </div>
+            <div class="candidate-fundamentals" data-symbol="${item.symbol}">
+              <span>市值：加载中</span>
+              <span>PE：加载中</span>
+            </div>
             <p>${item.themes.slice(0, 2).join(" / ")}</p>
             <small>${item.risk_tags.join("、")}</small>
           </article>`,
       )
       .join("")}
     </div>`;
+  hydrateCandidateFundamentals(candidates.slice(0, 12));
+}
+
+function updateCandidateToggle() {
+  const button = document.querySelector("#candidateToggle");
+  if (!button) return;
+  button.textContent = candidateCollapsed ? "展开" : "收起";
+  button.setAttribute("aria-expanded", String(!candidateCollapsed));
+}
+
+async function hydrateCandidateFundamentals(candidates) {
+  const requestId = (candidateMetricsRequestId += 1);
+  await Promise.allSettled(
+    candidates.map(async (item) => {
+      const params = new URLSearchParams({ symbol: item.symbol, name: item.name });
+      const response = await fetch(`/api/company?${params.toString()}`);
+      const metrics = await response.json();
+      if (requestId !== candidateMetricsRequestId) return;
+      const target = Array.from(document.querySelectorAll(".candidate-fundamentals")).find(
+        (element) => element.dataset.symbol === item.symbol,
+      );
+      if (!target) return;
+      const marketCap = formatMarketCap(metrics.market_cap, metrics.currency);
+      const peValue = metrics.trailing_pe ?? metrics.forward_pe;
+      const pe = peValue === null || peValue === undefined ? "暂无数据" : formatNumber(peValue);
+      target.innerHTML = `<span>市值：${marketCap}</span><span>PE：${pe}</span>`;
+    }),
+  );
 }
 
 function showCompanyLoading(name, symbol) {
@@ -279,17 +357,18 @@ function showCompanyLoading(name, symbol) {
 
 function renderCompany(metrics, detail) {
   const returns = metrics.returns || {};
+  const peValue = metrics.trailing_pe ?? metrics.forward_pe;
   document.querySelector("#companyTitle").textContent = `${metrics.name || ""} ${metrics.symbol || ""}`;
   document.querySelector("#companyBody").innerHTML = `
-    ${metrics.error ? `<div class="warning">${metrics.error}</div>` : ""}
     <div class="metric-grid">
       <div><span>当前价格</span><strong>${formatNumber(metrics.price)} ${metrics.currency || ""}</strong></div>
       <div><span>市值</span><strong>${formatMarketCap(metrics.market_cap, metrics.currency)}</strong></div>
-      <div><span>PE</span><strong>${formatNumber(metrics.trailing_pe)}</strong></div>
+      <div><span>PE</span><strong>${formatNumber(peValue)}</strong></div>
       <div><span>Forward PE</span><strong>${formatNumber(metrics.forward_pe)}</strong></div>
       <div><span>近 3 天</span><strong class="${percentClass(returns.three_day)}">${formatPercent(returns.three_day)}</strong></div>
       <div><span>近 1 周</span><strong class="${percentClass(returns.one_week)}">${formatPercent(returns.one_week)}</strong></div>
       <div><span>近 1 个月</span><strong class="${percentClass(returns.one_month)}">${formatPercent(returns.one_month)}</strong></div>
+      <div><span>近 6 个月</span><strong class="${percentClass(returns.six_month)}">${formatPercent(returns.six_month)}</strong></div>
       <div><span>股息率</span><strong>${metrics.dividend_yield ? formatPercent(metrics.dividend_yield * 100) : "暂无数据"}</strong></div>
       <div><span>52 周高点</span><strong>${formatNumber(metrics.fifty_two_week_high)}</strong></div>
       <div><span>52 周低点</span><strong>${formatNumber(metrics.fifty_two_week_low)}</strong></div>
@@ -312,7 +391,7 @@ async function openCompanyPanel(button) {
     const metrics = await response.json();
     renderCompany(metrics, detail);
   } catch (error) {
-    document.querySelector("#companyBody").innerHTML = '<div class="warning">公司详情查询失败，请稍后再试。</div>';
+    document.querySelector("#companyBody").innerHTML = '<div class="empty">公司数据暂不可用，请稍后重试。</div>';
   }
 }
 
@@ -340,7 +419,7 @@ async function loadCoreData() {
   const portfolio = await portfolioResponse.json();
   const candidates = await candidatesResponse.json();
   renderReports(reports);
-  renderPortfolio(portfolio);
+  renderDecisionSummary(portfolio, reports, candidates);
   renderCandidates(candidates);
   warmCompanyCache();
 }
@@ -364,7 +443,6 @@ async function loadSecondaryData() {
 
 async function loadData() {
   await loadCoreData();
-  renderSnapshotIdle();
   loadSecondaryData();
 }
 
@@ -427,11 +505,16 @@ document.querySelectorAll(".market-tab").forEach((button) => {
     document.querySelectorAll(".market-tab").forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
     renderReports(currentReports);
+    renderCandidates(currentCandidatePool);
   });
 });
 
 document.querySelector("#refreshBtn").addEventListener("click", refreshData);
-document.querySelector("#loadSnapshotBtn").addEventListener("click", loadSnapshot);
+document.querySelector("#loadSnapshotBtn")?.addEventListener("click", loadSnapshot);
+document.querySelector("#candidateToggle").addEventListener("click", () => {
+  candidateCollapsed = !candidateCollapsed;
+  renderCandidates(currentCandidatePool);
+});
 document.querySelector("#closeCompanyPanel").addEventListener("click", () => {
   document.querySelector("#companyOverlay").hidden = true;
 });

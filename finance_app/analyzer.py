@@ -424,15 +424,16 @@ THEME_COMPANY_GROUPS = {
             ],
         },
         {
-            "patterns": ["CPO", "optical", "silicon photonics", "光通信"],
+            "patterns": ["CPO", "optical", "silicon photonics", "光通信", "fiber", "Corning"],
             "leaders": [
                 ("Coherent", "COHR", "AI 数据中心光器件代表。"),
                 ("Lumentum", "LITE", "光器件和激光器弹性标的。"),
                 ("Marvell Technology", "MRVL", "AI 互联芯片代表。"),
+                ("Corning", "GLW", "AI 数据中心光纤、玻璃和连接材料代表。"),
                 ("Broadcom", "AVGO", "交换芯片和光互联平台代表。"),
-                ("Ciena", "CIEN", "光网络设备代表。"),
             ],
             "challengers": [
+                ("Ciena", "CIEN", "光网络设备代表。"),
                 ("Applied Optoelectronics", "AAOI", "光模块弹性标的。"),
                 ("Fabrinet", "FN", "光通信代工代表。"),
                 ("Credo Technology", "CRDO", "高速互联芯片新贵。"),
@@ -562,44 +563,7 @@ THEME_COMPANY_GROUPS = {
     ],
 }
 
-EXTRA_DIRECTIONS = {
-    "ch": [
-        {
-            "name": "业绩预告/中报超预期",
-            "keywords": ["中报", "业绩预告", "预增", "超预期", "利润"],
-            "risk": "业绩披露期容易出现兑现和预期差波动。",
-        },
-        {
-            "name": "资金流/成交放大",
-            "keywords": ["资金流入", "主力资金", "成交额", "放量", "换手"],
-            "risk": "资金驱动持续性弱，需防范快速轮动。",
-        },
-    ],
-    "hk": [
-        {
-            "name": "南向资金加仓",
-            "keywords": ["南向资金", "港股通", "加仓", "成交", "净买入"],
-            "risk": "南向资金风格切换会影响短期表现。",
-        },
-        {
-            "name": "回购与估值修复",
-            "keywords": ["回购", "buyback", "估值修复", "低估值", "净买入"],
-            "risk": "回购不等于基本面反转，需验证盈利趋势。",
-        },
-    ],
-    "us": [
-        {
-            "name": "财报超预期交易",
-            "keywords": ["earnings", "guidance", "beat", "revenue", "margin"],
-            "risk": "财报后波动大，指引变化会快速改变估值。",
-        },
-        {
-            "name": "ETF资金流入",
-            "keywords": ["ETF", "inflows", "fund flows", "sector ETF", "volume"],
-            "risk": "ETF 流入可能放大趋势，也可能快速反转。",
-        },
-    ],
-}
+EXTRA_DIRECTIONS = {}
 
 
 def _document_text(document) -> str:
@@ -690,25 +654,88 @@ def _directions_for_horizon(market_config: dict, horizon: str) -> list[dict]:
     directions = list(market_config.get("horizon_directions", {}).get(horizon) or market_config["directions"])
     market = market_config["code"]
     seen = {item["name"] for item in directions}
-    for theme in PROACTIVE_THEMES.get(market, []):
-        if theme["name"] in seen:
-            continue
-        directions.append(
-            {
-                "name": theme["name"],
-                "keywords": theme["keywords"],
-                "risk": theme["risk"],
-                "leaders": [],
-                "challengers": [],
-            }
-        )
-        seen.add(theme["name"])
-    for extra in EXTRA_DIRECTIONS.get(market, []):
+    if horizon == "day":
+        for theme in PROACTIVE_THEMES.get(market, []):
+            if theme["name"] in seen:
+                continue
+            directions.append(
+                {
+                    "name": theme["name"],
+                    "keywords": theme["keywords"],
+                    "risk": theme["risk"],
+                    "leaders": [],
+                    "challengers": [],
+                }
+            )
+            seen.add(theme["name"])
+    for extra in _extra_directions_for_horizon(market, horizon):
         if extra["name"] in seen:
             continue
         directions.append({**extra, "leaders": [], "challengers": []})
         seen.add(extra["name"])
     return directions
+
+
+def _extra_directions_for_horizon(market: str, horizon: str) -> list[dict]:
+    # Extra directions are tactical signals. Keeping them in every horizon made
+    # day/week/month rankings collapse into the same list.
+    if horizon != "day":
+        return []
+    return EXTRA_DIRECTIONS.get(market, [])
+
+
+def _theme_family(direction: HotDirection | dict) -> str:
+    if isinstance(direction, HotDirection):
+        name = direction.name
+        keywords = [direction.evidence, direction.risk]
+    else:
+        name = direction.get("name", "")
+        keywords = direction.get("keywords", [])
+    haystack = " ".join([name, *keywords]).lower()
+    families = [
+        ("cpo", ["cpo", "光通信", "光模块", "optical", "lumentum", "coherent", "corning", "硅光"]),
+        ("memory", ["存储", "hbm", "dram", "nand", "micron", "sandisk", "western digital"]),
+        ("photoresist-wet-chemicals", ["光刻胶", "湿电子", "显影液", "清洗剂", "剥离液"]),
+        ("fluorochemicals", ["氟化工", "含氟", "氟碳", "氟聚合物", "ptfe", "六氟丁二烯", "高端氟材料"]),
+        ("electronic-gases", ["电子特气", "特种气体", "六氟化钨", "wf6", "三氟化氮", "刻蚀气"]),
+        ("etch-equipment-materials", ["刻蚀材料", "刻蚀设备", "蚀刻液", "介质刻蚀", "等离子刻蚀"]),
+        ("targets", ["靶材", "溅射靶材", "铜靶", "铝靶", "钽靶"]),
+        ("wafers", ["半导体硅片", "先进硅片", "大硅片", "硅片", "外延片"]),
+        ("semiconductor-equipment", ["半导体设备", "cmp", "涂胶显影", "薄膜沉积", "清洗设备"]),
+        ("semiconductor-materials", ["半导体材料", "电子材料", "前驱体"]),
+        ("pcb", ["pcb", "玻璃基板", "覆铜板", "ai服务器"]),
+        ("ai-software-cloud", ["ai软件", "ai应用", "云服务", "云计算"]),
+        ("broker-exchange", ["港交所", "中资券商", "hong kong exchanges", "broker"]),
+        ("ipo-funding", ["ipo", "融资", "新股", "share sales", "fundraising", "equity capital markets"]),
+        ("platform-ai", ["大型科技", "平台", "cloud", "software", "互联网"]),
+        ("earnings", ["财报", "earnings", "guidance", "业绩"]),
+        ("fund-flow", ["etf", "资金流", "inflows", "fund flows", "成交"]),
+        ("dividend", ["高股息", "股息", "分红", "红利", "dividend", "yield"]),
+        ("drug", ["创新药", "临床", "bd", "license-out", "biotech", "pharma"]),
+        ("defense-space", ["国防", "航天", "defense", "spacex", "satellite", "aerospace"]),
+        ("power-grid", ["核电", "电网", "电力", "nuclear", "grid", "ai power"]),
+        ("crypto", ["稳定币", "代币化", "crypto", "tokenization", "digital assets"]),
+        ("metals", ["贵金属", "矿业", "gold", "silver", "critical minerals", "rare earth"]),
+        ("robotics", ["机器人", "physical ai", "industrial automation", "灵巧手", "减速器"]),
+    ]
+    for family, patterns in families:
+        if any(pattern in haystack for pattern in patterns):
+            return family
+    return name.lower()
+
+
+def _diversify_directions(scored: list[HotDirection], limit: int = 10) -> list[HotDirection]:
+    selected = []
+    seen_families = set()
+    for direction in sorted(scored, key=lambda item: item.score, reverse=True):
+        family = _theme_family(direction)
+        if family in seen_families:
+            continue
+        selected.append(direction)
+        seen_families.add(family)
+        if len(selected) >= limit:
+            return selected
+    return selected
 
 
 def _company_group(market: str, direction: dict, group: str, exclude: set[str] | None = None) -> list[Leader]:
@@ -769,7 +796,7 @@ def build_market_report(market_config: dict, documents: Iterable[str], market_co
                     evidence_sources=_evidence_sources(direction, documents),
                 )
             )
-        horizons[horizon] = sorted(scored, key=lambda item: item.score, reverse=True)[:10]
+        horizons[horizon] = _diversify_directions(scored)
 
     return MarketReport(
         market=market,

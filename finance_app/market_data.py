@@ -1,4 +1,5 @@
 import json
+import re
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -14,6 +15,35 @@ NASDAQ_SUMMARY_URL = "https://api.nasdaq.com/api/quote/{symbol}/summary?assetcla
 NASDAQ_DIVIDENDS_URL = "https://api.nasdaq.com/api/quote/{symbol}/dividends?assetclass=stocks"
 EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
 EASTMONEY_FIELDS = "f57,f58,f116,f162"
+COMPANIES_MARKET_CAP_URL = "https://companiesmarketcap.com/{slug}/marketcap/"
+COMPANIES_PE_URL = "https://companiesmarketcap.com/{slug}/pe-ratio/"
+COMPANIES_MARKET_CAP_SLUGS = {
+    "AAPL": "apple",
+    "AMZN": "amazon",
+    "AVGO": "broadcom",
+    "CEG": "constellation-energy",
+    "COHR": "coherent",
+    "COIN": "coinbase",
+    "CRCL": "circle",
+    "CRDO": "credo-technology",
+    "GEV": "ge-vernova",
+    "GLW": "corning",
+    "GOOG": "alphabet-google",
+    "GOOGL": "alphabet-google",
+    "HOOD": "robinhood",
+    "LITE": "lumentum",
+    "LMT": "lockheed-martin",
+    "META": "meta-platforms",
+    "MRVL": "marvell-technology",
+    "MSFT": "microsoft",
+    "MU": "micron-technology",
+    "NVDA": "nvidia",
+    "PLTR": "palantir",
+    "RKLB": "rocket-lab",
+    "SNDK": "sandisk",
+    "VST": "vistra",
+    "WDC": "western-digital",
+}
 
 
 def normalize_yahoo_symbol(symbol: str) -> str:
@@ -32,7 +62,7 @@ def _pct_change(current: float, previous: float) -> Optional[float]:
 def compute_returns(closes: list[float]) -> dict:
     cleaned = [value for value in closes if isinstance(value, (int, float))]
     if not cleaned:
-        return {"three_day": None, "one_week": None, "one_month": None}
+        return {"three_day": None, "one_week": None, "one_month": None, "six_month": None}
     current = cleaned[-1]
 
     def by_offset(days: int) -> Optional[float]:
@@ -43,7 +73,8 @@ def compute_returns(closes: list[float]) -> dict:
     return {
         "three_day": by_offset(3),
         "one_week": by_offset(5),
-        "one_month": _pct_change(current, cleaned[0]),
+        "one_month": by_offset(21),
+        "six_month": by_offset(126),
     }
 
 
@@ -82,6 +113,15 @@ def _fetch_eastmoney_json(url: str) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
+def _fetch_text(url: str) -> str:
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 local-private-finance-research/1.0"},
+    )
+    with urllib.request.urlopen(request, timeout=12) as response:
+        return response.read().decode("utf-8", errors="ignore")
+
+
 def _parse_number(value) -> float | None:
     if value in (None, "", "N/A", "NA", "--"):
         return None
@@ -106,6 +146,26 @@ def _parse_scaled_number(value, divisor: float = 100) -> float | None:
     if parsed is None:
         return None
     return round(parsed / divisor, 4)
+
+
+def _parse_market_cap_text(value: str | None) -> float | None:
+    if not value:
+        return None
+    text = value.replace(",", "").strip()
+    match = re.search(r"\$?\s*([-+]?\d+(?:\.\d+)?)\s*(Trillion|Billion|Million|T|B|M)?", text, re.I)
+    if not match:
+        return None
+    number = float(match.group(1))
+    unit = (match.group(2) or "").lower()
+    multipliers = {
+        "trillion": 1_000_000_000_000,
+        "t": 1_000_000_000_000,
+        "billion": 1_000_000_000,
+        "b": 1_000_000_000,
+        "million": 1_000_000,
+        "m": 1_000_000,
+    }
+    return round(number * multipliers.get(unit, 1), 2)
 
 
 def _find_header_value(items: list[dict], label: str) -> str | None:
@@ -135,6 +195,42 @@ def fetch_nasdaq_fundamentals(symbol: str) -> dict:
     return parse_nasdaq_fundamentals(summary, dividends)
 
 
+def fetch_companies_marketcap_fundamentals(symbol: str) -> dict:
+    slug = COMPANIES_MARKET_CAP_SLUGS.get(symbol.upper())
+    if not slug:
+        return {}
+
+    market_cap = None
+    trailing_pe = None
+    sources = []
+
+    marketcap_html = _fetch_text(COMPANIES_MARKET_CAP_URL.format(slug=slug))
+    sources.append("CompaniesMarketCap market cap page")
+    marketcap_match = re.search(r"Market cap:\s*<span[^>]*>\s*([^<]+)</span>", marketcap_html, re.I)
+    if marketcap_match:
+        market_cap = _parse_market_cap_text(marketcap_match.group(1))
+
+    pe_html = _fetch_text(COMPANIES_PE_URL.format(slug=slug))
+    sources.append("CompaniesMarketCap P/E ratio page")
+    pe_match = re.search(r"current price-to-earnings ratio \(TTM\) is\s*<strong>\s*([-+]?\d+(?:\.\d+)?)\s*</strong>", pe_html, re.I)
+    if pe_match:
+        trailing_pe = _parse_number(pe_match.group(1))
+    if trailing_pe is None:
+        pe_match = re.search(r"P/E ratio as of [^:]+:\s*<span[^>]*>\s*([-+]?\d+(?:\.\d+)?)\s*</span>", pe_html, re.I)
+        if pe_match:
+            trailing_pe = _parse_number(pe_match.group(1))
+
+    return {
+        "market_cap": market_cap,
+        "trailing_pe": trailing_pe,
+        "forward_pe": None,
+        "dividend_yield": None,
+        "fifty_two_week_high": None,
+        "fifty_two_week_low": None,
+        "source": "; ".join(sources),
+    }
+
+
 def fetch_eastmoney_fundamentals(symbol: str) -> dict:
     market = _eastmoney_market_id(symbol)
     if market is None:
@@ -148,7 +244,26 @@ def fetch_eastmoney_fundamentals(symbol: str) -> dict:
 def fetch_fallback_fundamentals(symbol: str) -> dict:
     if symbol.endswith((".SZ", ".SH")):
         return fetch_eastmoney_fundamentals(symbol)
-    return fetch_nasdaq_fundamentals(symbol)
+    nasdaq = fetch_nasdaq_fundamentals(symbol)
+    if nasdaq.get("market_cap") is not None and nasdaq.get("trailing_pe") is not None:
+        return nasdaq
+    companies = fetch_companies_marketcap_fundamentals(symbol)
+    return _merge_fundamentals(nasdaq, companies)
+
+
+def _merge_fundamentals(primary: dict, secondary: dict) -> dict:
+    if not primary:
+        return secondary
+    if not secondary:
+        return primary
+    merged = dict(primary)
+    for key in ("market_cap", "trailing_pe", "forward_pe", "dividend_yield", "fifty_two_week_high", "fifty_two_week_low"):
+        if merged.get(key) is None and secondary.get(key) is not None:
+            merged[key] = secondary[key]
+    sources = [source for source in [primary.get("source"), secondary.get("source")] if source]
+    if sources:
+        merged["source"] = "; ".join(sources)
+    return merged
 
 
 def _eastmoney_market_id(symbol: str) -> str | None:
@@ -157,6 +272,17 @@ def _eastmoney_market_id(symbol: str) -> str | None:
     if symbol.endswith(".SZ"):
         return "0"
     return None
+
+
+def _needs_fundamental_fallback(quote: dict) -> bool:
+    return not quote.get("marketCap") or quote.get("trailingPE") is None
+
+
+def _has_complete_cached_metrics(cached: dict | None) -> bool:
+    if cached is None:
+        return False
+    returns = cached.get("returns", {})
+    return "six_month" in returns and cached.get("market_cap") is not None and cached.get("trailing_pe") is not None
 
 
 def parse_eastmoney_fundamentals(payload: dict) -> dict:
@@ -202,7 +328,7 @@ def parse_nasdaq_fundamentals(summary: dict, dividends: dict) -> dict:
 
 def fetch_chart_closes(symbol: str) -> list[float]:
     yahoo_symbol = urllib.parse.quote(normalize_yahoo_symbol(symbol), safe="")
-    url = CHART_URL.format(symbol=yahoo_symbol) + "?range=1mo&interval=1d"
+    url = CHART_URL.format(symbol=yahoo_symbol) + "?range=6mo&interval=1d"
     payload = _fetch_json(url)
     results = payload.get("chart", {}).get("result", [])
     if not results:
@@ -213,7 +339,7 @@ def fetch_chart_closes(symbol: str) -> list[float]:
 
 def fetch_chart(symbol: str) -> dict:
     yahoo_symbol = urllib.parse.quote(normalize_yahoo_symbol(symbol), safe="")
-    url = CHART_URL.format(symbol=yahoo_symbol) + "?range=1mo&interval=1d"
+    url = CHART_URL.format(symbol=yahoo_symbol) + "?range=6mo&interval=1d"
     payload = _fetch_json(url)
     results = payload.get("chart", {}).get("result", [])
     if not results:
@@ -276,7 +402,7 @@ def get_company_metrics(
 ) -> dict:
     store = store or ReportStore(db_path)
     cached = store.get_company_metrics(symbol)
-    if cached is not None and prefer_cache:
+    if cached is not None and prefer_cache and _has_complete_cached_metrics(cached):
         return {**cached, "cache_hit": True}
 
     try:
@@ -288,7 +414,7 @@ def get_company_metrics(
             quote_error = str(exc)
         fundamentals = {}
         fundamentals_error = None
-        if quote_error:
+        if quote_error or _needs_fundamental_fallback(quote):
             try:
                 fundamentals = fetch_fallback_fundamentals(symbol)
             except Exception as exc:
@@ -321,11 +447,17 @@ def get_company_metrics(
             "stale": False,
             "cache_hit": False,
             "error": (
-                "Yahoo quote 接口暂时不可用，已尝试用备用公开接口补齐市值/PE/股息率；"
-                f"价格、涨跌幅和可用区间数据来自 chart endpoint。原始错误：{quote_error}"
-                + (f"；备用源错误：{fundamentals_error}" if fundamentals_error else "")
+                (
+                    "Yahoo quote 接口暂时不可用，已尝试用备用公开接口补齐市值/PE/股息率；"
+                    f"价格、涨跌幅和可用区间数据来自 chart endpoint。原始错误：{quote_error}"
+                    + (f"；备用源错误：{fundamentals_error}" if fundamentals_error else "")
+                )
                 if quote_error
-                else None
+                else (
+                    f"Yahoo quote 缺少市值或 PE，已尝试用备用公开接口补齐。备用源错误：{fundamentals_error}"
+                    if fundamentals_error
+                    else None
+                )
             ),
         }
         store.save_company_metrics(symbol, payload)
@@ -348,7 +480,7 @@ def get_company_metrics(
             "dividend_yield": None,
             "fifty_two_week_high": None,
             "fifty_two_week_low": None,
-            "returns": {"three_day": None, "one_week": None, "one_month": None},
+            "returns": {"three_day": None, "one_week": None, "one_month": None, "six_month": None},
             "fetched_at": utc_now_iso(),
             "source": "Yahoo Finance public quote/chart endpoints",
             "stale": True,

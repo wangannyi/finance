@@ -3,6 +3,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from finance_app.market_data import (
+    fetch_companies_marketcap_fundamentals,
     compute_returns,
     get_company_metrics,
     normalize_yahoo_symbol,
@@ -21,13 +22,14 @@ class MarketDataTests(unittest.TestCase):
         self.assertEqual(normalize_yahoo_symbol("NVDA"), "NVDA")
 
     def test_computes_returns_from_daily_closes(self):
-        closes = [100, 102, 101, 105, 110, 108, 120, 125]
+        closes = [100 + index for index in range(130)]
 
         returns = compute_returns(closes)
 
-        self.assertAlmostEqual(returns["three_day"], 13.64, places=2)
-        self.assertAlmostEqual(returns["one_week"], 23.76, places=2)
-        self.assertAlmostEqual(returns["one_month"], 25.0, places=2)
+        self.assertAlmostEqual(returns["three_day"], 1.33, places=2)
+        self.assertAlmostEqual(returns["one_week"], 2.23, places=2)
+        self.assertAlmostEqual(returns["one_month"], 10.1, places=2)
+        self.assertAlmostEqual(returns["six_month"], 122.33, places=2)
 
     def test_store_saves_and_loads_company_metrics(self):
         store = ReportStore(":memory:")
@@ -52,6 +54,9 @@ class MarketDataTests(unittest.TestCase):
                 "symbol": "NVDA",
                 "name": "NVIDIA",
                 "price": 120.0,
+                "market_cap": 1_000_000_000,
+                "trailing_pe": 42.5,
+                "returns": {"six_month": 22.5},
                 "fetched_at": "2026-07-01T00:00:00+00:00",
             },
         )
@@ -66,6 +71,23 @@ class MarketDataTests(unittest.TestCase):
         self.assertTrue(metrics["cache_hit"])
         fetch_quote.assert_not_called()
         fetch_chart.assert_not_called()
+
+    def test_company_metrics_refreshes_cache_without_half_year_return(self):
+        store = ReportStore(":memory:")
+        store.save_company_metrics("NVDA", {"symbol": "NVDA", "price": 120.0, "returns": {"one_month": 8.0}})
+        chart = {
+            "meta": {"symbol": "NVDA", "regularMarketPrice": 132.0, "currency": "USD"},
+            "indicators": {"quote": [{"close": [100 + index for index in range(130)]}]},
+        }
+
+        with (
+            patch("finance_app.market_data.fetch_quote", return_value={"regularMarketPrice": 132.0, "currency": "USD"}),
+            patch("finance_app.market_data.fetch_chart", return_value=chart),
+        ):
+            metrics = get_company_metrics("NVDA", db_path=":memory:", store=store)
+
+        self.assertFalse(metrics["cache_hit"])
+        self.assertIn("six_month", metrics["returns"])
 
     def test_company_metrics_can_force_refresh_cache(self):
         store = ReportStore(":memory:")
@@ -109,7 +131,10 @@ class MarketDataTests(unittest.TestCase):
         with TemporaryDirectory() as tmpdir:
             db_path = f"{tmpdir}/reports.sqlite3"
             store = ReportStore(db_path)
-            store.save_company_metrics("NVDA", {"symbol": "NVDA", "price": 120.0})
+            store.save_company_metrics(
+                "NVDA",
+                {"symbol": "NVDA", "price": 120.0, "market_cap": 1_000_000_000, "trailing_pe": 42.5, "returns": {"six_month": 22.5}},
+            )
 
             with (
                 patch("finance_app.market_data.fetch_quote") as fetch_quote,
@@ -180,6 +205,82 @@ class MarketDataTests(unittest.TestCase):
         self.assertEqual(metrics["market_cap"], 92841300065.03)
         self.assertEqual(metrics["trailing_pe"], 187.64)
         self.assertIn("东方财富单股行情接口", metrics["source"])
+
+    def test_company_metrics_uses_fallback_when_quote_lacks_market_cap_or_pe(self):
+        chart = {
+            "meta": {
+                "symbol": "300661.SZ",
+                "regularMarketPrice": 137.21,
+                "currency": "CNY",
+            },
+            "indicators": {"quote": [{"close": [120.0, 137.21]}]},
+        }
+        fallback = {
+            "market_cap": 92841300065.03,
+            "trailing_pe": 187.64,
+            "forward_pe": None,
+            "dividend_yield": None,
+            "source": "东方财富单股行情接口",
+        }
+
+        with (
+            patch("finance_app.market_data.fetch_quote", return_value={"regularMarketPrice": 137.21, "currency": "CNY"}),
+            patch("finance_app.market_data.fetch_chart", return_value=chart),
+            patch("finance_app.market_data.fetch_fallback_fundamentals", return_value=fallback),
+        ):
+            metrics = get_company_metrics("300661.SZ", name="圣邦股份", db_path=":memory:")
+
+        self.assertEqual(metrics["market_cap"], 92841300065.03)
+        self.assertEqual(metrics["trailing_pe"], 187.64)
+
+    def test_companies_marketcap_fundamentals_parse_market_cap_and_pe(self):
+        marketcap_html = '<h2><strong>Market cap: <span class="background-ya">$71.60 Billion USD</span></strong></h2>'
+        pe_html = "the company's current price-to-earnings ratio (TTM) is <strong>337.154</strong>."
+
+        with patch("finance_app.market_data._fetch_text", side_effect=[marketcap_html, pe_html]):
+            fundamentals = fetch_companies_marketcap_fundamentals("COHR")
+
+        self.assertEqual(fundamentals["market_cap"], 71_600_000_000)
+        self.assertEqual(fundamentals["trailing_pe"], 337.154)
+
+    def test_us_fallback_merges_nasdaq_market_cap_with_companies_marketcap_pe(self):
+        chart = {
+            "meta": {
+                "symbol": "COHR",
+                "regularMarketPrice": 458.0,
+                "currency": "USD",
+            },
+            "indicators": {"quote": [{"close": [400.0, 458.0]}]},
+        }
+        nasdaq = {
+            "market_cap": 71_700_000_000,
+            "trailing_pe": None,
+            "forward_pe": None,
+            "dividend_yield": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
+            "source": "NASDAQ public quote summary/dividends endpoints",
+        }
+        companies = {
+            "market_cap": 71_600_000_000,
+            "trailing_pe": 337.154,
+            "forward_pe": None,
+            "dividend_yield": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
+            "source": "CompaniesMarketCap P/E ratio page",
+        }
+
+        with (
+            patch("finance_app.market_data.fetch_quote", side_effect=Exception("HTTP Error 401: Unauthorized")),
+            patch("finance_app.market_data.fetch_chart", return_value=chart),
+            patch("finance_app.market_data.fetch_nasdaq_fundamentals", return_value=nasdaq),
+            patch("finance_app.market_data.fetch_companies_marketcap_fundamentals", return_value=companies),
+        ):
+            metrics = get_company_metrics("COHR", name="Coherent", db_path=":memory:")
+
+        self.assertEqual(metrics["market_cap"], 71_700_000_000)
+        self.assertEqual(metrics["trailing_pe"], 337.154)
 
     def test_parses_nasdaq_fundamentals_for_blocked_yahoo_quote_fields(self):
         summary = {

@@ -1,6 +1,6 @@
 import unittest
 
-from finance_app.analyzer import build_market_report
+from finance_app.analyzer import _theme_family, build_market_report
 from finance_app.config import MARKET_CONFIGS
 from finance_app.storage import ReportStore
 
@@ -18,7 +18,10 @@ class MarketReportTests(unittest.TestCase):
         self.assertEqual(set(report.horizons), {"day", "week", "month"})
 
         for horizon, items in report.horizons.items():
-            self.assertEqual(len(items), 10)
+            self.assertGreater(len(items), 0)
+            self.assertLessEqual(len(items), 10)
+            families = [_theme_family(item) for item in items]
+            self.assertEqual(len(families), len(set(families)))
             for item in items:
                 self.assertTrue(item.name)
                 self.assertGreaterEqual(item.score, 0)
@@ -91,7 +94,8 @@ class MarketReportTests(unittest.TestCase):
         self.assertIsNotNone(loaded)
         self.assertEqual(loaded["market"], "us")
         self.assertIn("month", loaded["horizons"])
-        self.assertEqual(len(loaded["horizons"]["month"]), 10)
+        self.assertGreater(len(loaded["horizons"]["month"]), 0)
+        self.assertLessEqual(len(loaded["horizons"]["month"]), 10)
 
     def test_us_report_surfaces_memory_and_cpo_when_documents_mention_them(self):
         documents = [
@@ -147,15 +151,15 @@ class MarketReportTests(unittest.TestCase):
             "horizon_directions": {
                 "day": [
                     {
-                        "name": "CPO商业化催化",
+                        "name": "CPO/硅光光模块",
                         "keywords": ["CPO", "商业化"],
-                        "risk": "短线催化波动大。",
+                        "risk": "短线波动大。",
                         "leaders": [("日度龙头", "DAY", "日度交易线索。")],
                     }
                 ],
                 "week": [
                     {
-                        "name": "光模块订单链",
+                        "name": "AI光互联/CPO光模块",
                         "keywords": ["光模块", "订单"],
                         "risk": "订单兑现需要验证。",
                         "leaders": [("周度龙头", "WEEK", "周度产业链线索。")],
@@ -177,8 +181,8 @@ class MarketReportTests(unittest.TestCase):
             ["AI 算力 光模块 订单 CPO 商业化"],
         ).to_dict()
 
-        self.assertEqual(report["horizons"]["day"][0]["name"], "CPO商业化催化")
-        self.assertEqual(report["horizons"]["week"][0]["name"], "光模块订单链")
+        self.assertEqual(report["horizons"]["day"][0]["name"], "CPO/硅光光模块")
+        self.assertEqual(report["horizons"]["week"][0]["name"], "AI光互联/CPO光模块")
         self.assertEqual(report["horizons"]["month"][0]["name"], "AI算力基础设施")
 
     def test_a_share_config_uses_finer_granularity_for_shorter_horizons(self):
@@ -196,8 +200,8 @@ class MarketReportTests(unittest.TestCase):
 
         self.assertNotEqual(day_names, week_names)
         self.assertNotEqual(week_names, month_names)
-        self.assertIn("CPO商业化/光模块资金", day_names)
-        self.assertIn("PCB/AI服务器链", week_names)
+        self.assertIn("CPO/硅光光模块", day_names)
+        self.assertIn("AI服务器PCB/玻璃基板", week_names)
         self.assertIn("AI 算力硬件", month_names)
 
     def test_a_share_semiconductor_material_micro_themes_enter_short_horizons(self):
@@ -247,6 +251,11 @@ class MarketReportTests(unittest.TestCase):
 
                 self.assertNotEqual(day_names, week_names)
                 self.assertNotEqual(week_names, month_names)
+                for names in (day_names, week_names, month_names):
+                    self.assertEqual(len(names), len(set(names)))
+                for items in report["horizons"].values():
+                    families = [_theme_family(item) for item in items]
+                    self.assertEqual(len(families), len(set(families)))
 
 
 if __name__ == "__main__":
