@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from finance_app.market_data import compute_returns, get_company_metrics, normalize_yahoo_symbol
+from finance_app.market_data import compute_returns, get_company_metrics, normalize_yahoo_symbol, parse_nasdaq_fundamentals
 from finance_app.storage import ReportStore
 
 
@@ -66,6 +66,33 @@ class MarketDataTests(unittest.TestCase):
         self.assertEqual(metrics["fifty_two_week_high"], 350.0)
         self.assertEqual(metrics["fifty_two_week_low"], 155.0)
         self.assertIn("Yahoo quote 接口暂时不可用", metrics["error"])
+
+    def test_parses_nasdaq_fundamentals_for_blocked_yahoo_quote_fields(self):
+        summary = {
+            "data": {
+                "summaryData": {
+                    "MarketCap": {"value": "89,708,775,947"},
+                    "Yield": {"value": "0.69%"},
+                    "FiftTwoWeekHighLow": {"value": "$412.7/$240.51"},
+                }
+            }
+        }
+        dividends = {
+            "data": {
+                "dividendHeaderValues": [
+                    {"label": "Dividend Yield", "value": "0.66%"},
+                    {"label": "P/E Ratio", "value": "47.67"},
+                ]
+            }
+        }
+
+        fundamentals = parse_nasdaq_fundamentals(summary, dividends)
+
+        self.assertEqual(fundamentals["market_cap"], 89708775947)
+        self.assertEqual(fundamentals["trailing_pe"], 47.67)
+        self.assertEqual(fundamentals["dividend_yield"], 0.0066)
+        self.assertEqual(fundamentals["fifty_two_week_high"], 412.7)
+        self.assertEqual(fundamentals["fifty_two_week_low"], 240.51)
 
 
 if __name__ == "__main__":
