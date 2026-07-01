@@ -25,6 +25,7 @@ class HotDirection:
     evidence: str
     risk: str
     leaders: List[Leader]
+    challengers: List[Leader] = field(default_factory=list)
     evidence_sources: List[EvidenceSource] = field(default_factory=list)
 
 

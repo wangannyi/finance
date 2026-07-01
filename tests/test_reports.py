@@ -6,7 +6,7 @@ from finance_app.storage import ReportStore
 
 
 class MarketReportTests(unittest.TestCase):
-    def test_builds_top_five_for_each_horizon_with_evidence_and_leaders(self):
+    def test_builds_top_ten_for_each_horizon_with_company_groups(self):
         documents = [
             "AI 算力 CPO PCB 半导体 创新药 机器人 中报预增 红利 电力",
             "SEC EDGAR FRED Nasdaq AI semiconductor biotech ETF",
@@ -18,12 +18,16 @@ class MarketReportTests(unittest.TestCase):
         self.assertEqual(set(report.horizons), {"day", "week", "month"})
 
         for horizon, items in report.horizons.items():
-            self.assertEqual(len(items), 5)
+            self.assertEqual(len(items), 10)
             for item in items:
                 self.assertTrue(item.name)
                 self.assertGreaterEqual(item.score, 0)
                 self.assertTrue(item.evidence)
-                self.assertTrue(item.leaders)
+                self.assertEqual(len(item.leaders), 5)
+                self.assertEqual(len(item.challengers), 5)
+                leader_symbols = {leader.ticker for leader in item.leaders}
+                challenger_symbols = {company.ticker for company in item.challengers}
+                self.assertFalse(leader_symbols & challenger_symbols)
 
     def test_store_saves_and_loads_latest_report(self):
         store = ReportStore(":memory:")
@@ -35,7 +39,7 @@ class MarketReportTests(unittest.TestCase):
         self.assertIsNotNone(loaded)
         self.assertEqual(loaded["market"], "us")
         self.assertIn("month", loaded["horizons"])
-        self.assertEqual(len(loaded["horizons"]["month"]), 5)
+        self.assertEqual(len(loaded["horizons"]["month"]), 10)
 
     def test_us_report_surfaces_memory_and_cpo_when_documents_mention_them(self):
         documents = [

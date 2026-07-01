@@ -419,11 +419,29 @@ main {
   line-height: 1.3;
 }
 
+.company-groups {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.company-group {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+}
+
+.company-group > strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
 .leaders {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
 }
 
 .leader {

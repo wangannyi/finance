@@ -81,18 +81,12 @@ function renderReports(reports) {
                       <strong>${item.name}</strong>
                       <span class="score">${item.score}</span>
                     </div>
-                    <div class="leaders">
-                      ${(item.leaders || [])
-                        .map(
-                          (leader) =>
-                            `<button class="leader" type="button" data-name="${leader.name}" data-symbol="${leader.ticker}" data-detail="${leader.detail}">
-                              <strong>${leader.name}</strong><span>${leader.ticker}</span>
-                            </button>`,
-                        )
-                        .join("")}
-                    </div>
                     <details class="direction-detail">
-                      <summary>证据与风险</summary>
+                      <summary>公司清单、证据与风险</summary>
+                      <div class="company-groups">
+                        ${renderCompanyGroup("龙头", item.leaders || [])}
+                        ${renderCompanyGroup("新贵", item.challengers || [])}
+                      </div>
                       <div class="evidence">${item.evidence}</div>
                       <div class="risk">风险：${item.risk}</div>
                       <div class="evidence-sources">
@@ -129,6 +123,24 @@ function renderReports(reports) {
         </article>`;
     })
     .join("");
+}
+
+function renderCompanyGroup(title, companies) {
+  return `
+    <div class="company-group">
+      <strong>${title}</strong>
+      <div class="leaders">
+        ${companies
+          .slice(0, 5)
+          .map(
+            (company) =>
+              `<button class="leader" type="button" data-name="${company.name}" data-symbol="${company.ticker}" data-detail="${company.detail}">
+                <strong>${company.name}</strong><span>${company.ticker}</span>
+              </button>`,
+          )
+          .join("")}
+      </div>
+    </div>`;
 }
 
 function renderDiscoveries(discoveredThemes) {
