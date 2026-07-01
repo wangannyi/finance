@@ -24,6 +24,10 @@ def fetch_url(url: str, timeout: int = 12) -> str:
 
 
 def extract_text(html: str) -> str:
+    return extract_document("", html)["text"]
+
+
+def extract_document(url: str, html: str, error: str | None = None) -> dict:
     title_matches = re.findall(r"<title[^>]*>(.*?)</title>", html, flags=re.I | re.S)
     heading_matches = re.findall(r"<h[1-3][^>]*>(.*?)</h[1-3]>", html, flags=re.I | re.S)
     meta_matches = re.findall(r'<meta[^>]+(?:name|property)=["\'](?:description|og:title)["\'][^>]+content=["\'](.*?)["\']', html, flags=re.I | re.S)
@@ -34,16 +38,22 @@ def extract_text(html: str) -> str:
         text = re.sub(r"\s+", " ", unescape(text)).strip()
         if text:
             cleaned.append(text)
-    return "\n".join(cleaned)
+    title = cleaned[0] if cleaned else url
+    return {
+        "url": url,
+        "title": title,
+        "text": "\n".join(cleaned),
+        "error": error,
+    }
 
 
 def collect_documents(urls: Iterable[str]) -> list[str]:
     documents = []
     for url in urls:
         try:
-            documents.append(extract_text(fetch_url(url)))
+            documents.append(extract_document(url, fetch_url(url)))
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            documents.append(f"抓取失败 {url}: {exc}")
+            documents.append(extract_document(url, "", error=str(exc)))
     return documents
 
 

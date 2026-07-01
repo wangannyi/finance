@@ -62,25 +62,39 @@ function renderReports(reports) {
         .map((horizon) => {
           const rows = (report.horizons[horizon] || [])
             .map(
-              (item) => `
-                <article class="direction">
-                  <div class="direction-title">
-                    <strong>${item.name}</strong>
-                    <span class="score">${item.score}</span>
-                  </div>
-                  <div class="evidence">${item.evidence}</div>
-                  <div class="risk">风险：${item.risk}</div>
-                  <div class="leaders">
-                    ${(item.leaders || [])
-                      .map(
-                        (leader) =>
-                          `<button class="leader" type="button" data-name="${leader.name}" data-symbol="${leader.ticker}" data-detail="${leader.detail}">
-                            <strong>${leader.name}</strong> <span>${leader.ticker}</span>：${leader.detail}
-                          </button>`,
-                      )
-                      .join("")}
-                  </div>
-                </article>`,
+              (item) => {
+                const sourceRows = (item.evidence_sources || [])
+                  .map(
+                    (source) => `
+                      <a class="evidence-source" href="${source.url}" target="_blank" rel="noreferrer">
+                        <strong>${source.title || hostLabel(source.url)}</strong>
+                        <span>${(source.matched_keywords || []).slice(0, 4).join(" / ")}</span>
+                      </a>`,
+                  )
+                  .join("");
+                return `
+                  <article class="direction">
+                    <div class="direction-title">
+                      <strong>${item.name}</strong>
+                      <span class="score">${item.score}</span>
+                    </div>
+                    <div class="evidence">${item.evidence}</div>
+                    <div class="evidence-sources">
+                      ${sourceRows || '<span class="no-source">本轮未命中可展示来源</span>'}
+                    </div>
+                    <div class="risk">风险：${item.risk}</div>
+                    <div class="leaders">
+                      ${(item.leaders || [])
+                        .map(
+                          (leader) =>
+                            `<button class="leader" type="button" data-name="${leader.name}" data-symbol="${leader.ticker}" data-detail="${leader.detail}">
+                              <strong>${leader.name}</strong> <span>${leader.ticker}</span>：${leader.detail}
+                            </button>`,
+                        )
+                        .join("")}
+                    </div>
+                  </article>`;
+              },
             )
             .join("");
           return `<section class="horizon"><h3>${labels[horizon]}</h3>${rows}</section>`;

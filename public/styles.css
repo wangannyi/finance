@@ -407,6 +407,45 @@ main {
   font-size: 13px;
 }
 
+.evidence-sources {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.evidence-source {
+  display: block;
+  border: 1px solid rgba(47, 59, 72, 0.8);
+  border-radius: 6px;
+  background: rgba(13, 17, 23, 0.38);
+  color: var(--muted);
+  padding: 7px 8px;
+  text-decoration: none;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.evidence-source:hover {
+  border-color: var(--blue);
+  color: var(--text);
+}
+
+.evidence-source strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 3px;
+  overflow-wrap: anywhere;
+}
+
+.evidence-source span {
+  color: var(--blue);
+}
+
+.no-source {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .risk {
   color: #ffd391;
 }

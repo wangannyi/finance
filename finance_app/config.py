@@ -139,6 +139,7 @@ MARKET_CONFIGS = {
             "https://finance.yahoo.com/technology/ai/articles/optical-transceiver-market-set-double-104800250.html",
             "https://www.idtechex.com/en/research-report/co-packaged-optics-cpo/1138",
             "https://futurumgroup.com/insights/coherent-q3-fy-2026-ai-data-center-demand-accelerates-optical-growth/",
+            "https://www.micron.com/about/newsroom",
         ],
         "directions": [
             {

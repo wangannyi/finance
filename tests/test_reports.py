@@ -49,6 +49,23 @@ class MarketReportTests(unittest.TestCase):
         self.assertIn("AI 存储/HBM", month_names)
         self.assertIn("CPO/光通信", month_names)
 
+    def test_report_includes_direction_level_evidence_sources(self):
+        documents = [
+            {
+                "url": "https://example.com/cpo",
+                "title": "CPO optical transceiver demand accelerates",
+                "text": "CPO co-packaged optics optical transceiver silicon photonics Coherent Lumentum Marvell",
+                "error": None,
+            }
+        ]
+
+        report = build_market_report(MARKET_CONFIGS["us"], documents).to_dict()
+        cpo = next(item for item in report["horizons"]["month"] if item["name"] == "CPO/光通信")
+
+        self.assertEqual(cpo["evidence_sources"][0]["url"], "https://example.com/cpo")
+        self.assertEqual(cpo["evidence_sources"][0]["title"], "CPO optical transceiver demand accelerates")
+        self.assertIn("CPO", cpo["evidence_sources"][0]["matched_keywords"])
+
 
 if __name__ == "__main__":
     unittest.main()

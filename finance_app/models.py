@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, List
 
@@ -11,12 +11,21 @@ class Leader:
 
 
 @dataclass
+class EvidenceSource:
+    url: str
+    title: str
+    matched_keywords: List[str]
+    error: str | None = None
+
+
+@dataclass
 class HotDirection:
     name: str
     score: int
     evidence: str
     risk: str
     leaders: List[Leader]
+    evidence_sources: List[EvidenceSource] = field(default_factory=list)
 
 
 @dataclass
