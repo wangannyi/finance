@@ -16,6 +16,7 @@ function formatMarketCap(value, currency) {
   const units = [
     { label: "万亿", divisor: 1_000_000_000_000 },
     { label: "亿", divisor: 100_000_000 },
+    { label: "万", divisor: 10_000 },
   ];
   const unit = units.find((item) => value >= item.divisor) || { label: "", divisor: 1 };
   return `${formatNumber(value / unit.divisor)}${unit.label} ${currency || ""}`.trim();
@@ -106,6 +107,106 @@ function renderReports(reports) {
     .join("");
 }
 
+function renderPortfolio(plan) {
+  const container = document.querySelector("#portfolioPlan");
+  const marketRows = Object.entries(plan.markets || {})
+    .map(
+      ([market, item]) => `
+        <div class="portfolio-market">
+          <span>${item.name}</span>
+          <strong>${formatMarketCap(item.target_amount, "CNY")}</strong>
+          <small>${(item.target_ratio * 100).toFixed(0)}% · ${item.role}</small>
+        </div>`,
+    )
+    .join("");
+
+  const checks = (plan.risk_checks || []).map((item) => `<li>${item}</li>`).join("");
+  const questions = (plan.questions || []).map((item) => `<li>${item}</li>`).join("");
+
+  container.innerHTML = `
+    <div class="portfolio-markets">${marketRows}</div>
+    <div class="guardrail-row">
+      <div><span>单标的上限</span><strong>${formatMarketCap(plan.guardrails.max_single_position_amount, "CNY")}</strong></div>
+      <div><span>单主题上限</span><strong>${formatMarketCap(plan.guardrails.max_theme_amount, "CNY")}</strong></div>
+      <div><span>建议分批</span><strong>${plan.guardrails.suggested_batches} 次</strong></div>
+    </div>
+    <div class="check-list">
+      <strong>买入前检查</strong>
+      <ul>${checks}</ul>
+    </div>
+    <div class="check-list muted-list">
+      <strong>仍需你确认</strong>
+      <ul>${questions}</ul>
+    </div>`;
+}
+
+function renderDataSnapshot(snapshot) {
+  const container = document.querySelector("#dataSnapshot");
+  const status = snapshot.status || {};
+  const aShareCount = (snapshot.a_share || []).length;
+  const hkCount = (snapshot.hk || []).length;
+  const errors = snapshot.errors || [];
+  const samples = [...(snapshot.a_share || []).slice(0, 3), ...(snapshot.hk || []).slice(0, 3)]
+    .map(
+      (item) => `
+        <div class="snapshot-row">
+          <strong>${item.name || item.symbol}</strong>
+          <span>${item.symbol}</span>
+          <span>${formatNumber(item.price)}</span>
+          <span class="${percentClass(item.change_pct)}">${formatPercent(item.change_pct)}</span>
+        </div>`,
+    )
+    .join("");
+
+  container.innerHTML = `
+    <div class="${status.available ? "data-ok" : "warning"}">${status.message || "数据源状态未知"}</div>
+    ${errors.length ? `<div class="warning">${errors.join("<br>")}</div>` : ""}
+    <div class="data-counts">
+      <div><span>A 股快照</span><strong>${aShareCount}</strong></div>
+      <div><span>港股快照</span><strong>${hkCount}</strong></div>
+    </div>
+    ${samples ? `<div class="snapshot-list">${samples}</div>` : '<div class="empty">安装 AKShare 后可显示 A 股/港股增强行情快照。</div>'}`;
+}
+
+function renderCandidates(pool) {
+  const container = document.querySelector("#candidatePool");
+  const limit = document.querySelector("#candidateLimit");
+  const candidates = pool.candidates || [];
+  limit.textContent = `单标的上限 ${formatMarketCap(pool.limits?.max_single_position_amount, "CNY")}`;
+
+  if (!candidates.length) {
+    container.innerHTML = '<div class="empty">暂无候选标的。先点击“立即更新”生成三市场报告。</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="candidate-header">
+      <span>公司</span>
+      <span>市场</span>
+      <span>主题</span>
+      <span>动作</span>
+      <span>上限</span>
+      <span>风险</span>
+    </div>
+    ${candidates
+      .slice(0, 18)
+      .map(
+        (item) => `
+          <div class="candidate-row">
+            <button class="leader candidate-company" type="button" data-name="${item.name}" data-symbol="${item.symbol}" data-detail="${item.leader_detail}">
+              <strong>${item.name}</strong><span>${item.symbol}</span>
+            </button>
+            <span>${item.market_name}</span>
+            <span>${item.themes.slice(0, 2).join(" / ")}</span>
+            <strong>${item.action}</strong>
+            <span>${formatMarketCap(item.max_observation_amount, "CNY")}</span>
+            <span>${item.risk_tags.join("、")}</span>
+          </div>`,
+      )
+      .join("")}
+    <div class="candidate-note">候选池只用于观察和买入前检查，不代表买入建议。真正交易前需要核验财报、公告、估值和仓位。</div>`;
+}
+
 function showCompanyLoading(name, symbol) {
   document.querySelector("#companyTitle").textContent = `${name} ${symbol}`;
   document.querySelector("#companyBody").innerHTML = '<div class="empty">正在从本机服务查询公司行情...</div>';
@@ -166,11 +267,23 @@ function renderHistory(history) {
 }
 
 async function loadData() {
-  const [reportsResponse, historyResponse] = await Promise.all([fetch("/api/reports"), fetch("/api/history")]);
+  const [reportsResponse, historyResponse, portfolioResponse, snapshotResponse, candidatesResponse] = await Promise.all([
+    fetch("/api/reports"),
+    fetch("/api/history"),
+    fetch("/api/portfolio"),
+    fetch("/api/data-snapshot"),
+    fetch("/api/candidates"),
+  ]);
   const reports = await reportsResponse.json();
   const history = await historyResponse.json();
+  const portfolio = await portfolioResponse.json();
+  const snapshot = await snapshotResponse.json();
+  const candidates = await candidatesResponse.json();
   renderReports(reports);
   renderHistory(history);
+  renderPortfolio(portfolio);
+  renderDataSnapshot(snapshot);
+  renderCandidates(candidates);
 }
 
 async function refreshData() {

@@ -4,8 +4,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from .akshare_provider import AkshareProvider
+from .candidates import build_candidate_pool
 from .crawler import refresh_reports
 from .market_data import get_company_metrics
+from .portfolio import build_default_portfolio_plan
 from .storage import ReportStore
 
 
@@ -42,6 +45,16 @@ class FinanceHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/history":
             self._send_json(ReportStore(str(DB_PATH)).get_history())
+            return
+        if parsed.path == "/api/portfolio":
+            self._send_json(build_default_portfolio_plan())
+            return
+        if parsed.path == "/api/data-snapshot":
+            self._send_json(AkshareProvider().market_snapshot())
+            return
+        if parsed.path == "/api/candidates":
+            store = ReportStore(str(DB_PATH))
+            self._send_json(build_candidate_pool(store.get_latest_reports(), build_default_portfolio_plan()))
             return
         if parsed.path == "/api/company":
             query = parse_qs(parsed.query)
