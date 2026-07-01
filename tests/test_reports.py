@@ -23,11 +23,32 @@ class MarketReportTests(unittest.TestCase):
                 self.assertTrue(item.name)
                 self.assertGreaterEqual(item.score, 0)
                 self.assertTrue(item.evidence)
-                self.assertEqual(len(item.leaders), 5)
-                self.assertEqual(len(item.challengers), 5)
+                self.assertLessEqual(len(item.leaders), 5)
+                self.assertLessEqual(len(item.challengers), 5)
                 leader_symbols = {leader.ticker for leader in item.leaders}
                 challenger_symbols = {company.ticker for company in item.challengers}
                 self.assertFalse(leader_symbols & challenger_symbols)
+
+    def test_unknown_direction_does_not_use_market_padding(self):
+        market_config = {
+            "code": "ch",
+            "name": "A 股",
+            "summary": "测试未知主题不乱补公司。",
+            "sources": [],
+            "directions": [
+                {
+                    "name": "未知细分主题",
+                    "keywords": ["unknown-theme"],
+                    "risk": "没有可信公司池时不展示公司。",
+                }
+            ],
+        }
+
+        report = build_market_report(market_config, ["unknown-theme"]).to_dict()
+        direction = report["horizons"]["month"][0]
+
+        self.assertEqual(direction["leaders"], [])
+        self.assertEqual(direction["challengers"], [])
 
     def test_company_groups_are_theme_specific_not_market_padding(self):
         ch_report = build_market_report(MARKET_CONFIGS["ch"], ["固态电池 硫化物电解质"]).to_dict()

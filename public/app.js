@@ -84,8 +84,8 @@ function renderReports(reports) {
                     <details class="direction-detail">
                       <summary>公司清单、证据与风险</summary>
                       <div class="company-groups">
-                        ${renderCompanyGroup("龙头", item.leaders || [])}
-                        ${renderCompanyGroup("新贵", item.challengers || [])}
+                        ${renderCompanyGroup("代表龙头", item.leaders || [])}
+                        ${renderCompanyGroup("高弹性标的", item.challengers || [])}
                       </div>
                       <div class="evidence">${item.evidence}</div>
                       <div class="risk">风险：${item.risk}</div>
@@ -126,19 +126,20 @@ function renderReports(reports) {
 }
 
 function renderCompanyGroup(title, companies) {
+  const rows = companies
+    .slice(0, 5)
+    .map(
+      (company) =>
+        `<button class="leader" type="button" data-name="${company.name}" data-symbol="${company.ticker}" data-detail="${company.detail}">
+          <strong>${company.name}</strong><span>${company.ticker}</span>
+        </button>`,
+    )
+    .join("");
   return `
     <div class="company-group">
       <strong>${title}</strong>
       <div class="leaders">
-        ${companies
-          .slice(0, 5)
-          .map(
-            (company) =>
-              `<button class="leader" type="button" data-name="${company.name}" data-symbol="${company.ticker}" data-detail="${company.detail}">
-                <strong>${company.name}</strong><span>${company.ticker}</span>
-              </button>`,
-          )
-          .join("")}
+        ${rows || '<span class="no-source">暂无高置信标的</span>'}
       </div>
     </div>`;
 }
@@ -294,7 +295,7 @@ function renderCompany(metrics, detail) {
       <div><span>52 周低点</span><strong>${formatNumber(metrics.fifty_two_week_low)}</strong></div>
     </div>
     <div class="company-note">
-      <p><strong>龙头说明：</strong>${detail || "暂无补充说明"}</p>
+      <p><strong>入选理由：</strong>${detail || "暂无补充说明"}</p>
       <p><strong>数据源：</strong>${metrics.source || "Yahoo Finance"}；更新时间：${formatTime(metrics.fetched_at)}</p>
       <p><strong>使用限制：</strong>行情字段可能延迟或缺失，买入前仍需核验交易所公告、财报和估值。</p>
     </div>`;
