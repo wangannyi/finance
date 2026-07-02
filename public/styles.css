@@ -354,6 +354,12 @@ main {
   white-space: nowrap;
 }
 
+.candidate-fundamentals .candidate-updated {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-weight: 560;
+}
+
 .leader {
   min-height: 30px;
   border-radius: 999px;

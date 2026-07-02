@@ -1,5 +1,6 @@
 import json
 import re
+import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -13,8 +14,16 @@ QUOTE_URL = "https://query1.finance.yahoo.com/v7/finance/quote"
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 NASDAQ_SUMMARY_URL = "https://api.nasdaq.com/api/quote/{symbol}/summary?assetclass=stocks"
 NASDAQ_DIVIDENDS_URL = "https://api.nasdaq.com/api/quote/{symbol}/dividends?assetclass=stocks"
-EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
-EASTMONEY_FIELDS = "f57,f58,f116,f162"
+EASTMONEY_QUOTE_HOSTS = (
+    "push2.eastmoney.com",
+    "push2his.eastmoney.com",
+    "36.push2.eastmoney.com",
+    "72.push2.eastmoney.com",
+    "push2delay.eastmoney.com",
+)
+EASTMONEY_FIELDS = "f55,f57,f58,f116,f162"
+COMPANY_METRICS_SCHEMA_VERSION = 4
+STOCK_ANALYSIS_STATISTICS_URL = "https://stockanalysis.com/stocks/{symbol}/statistics/"
 COMPANIES_MARKET_CAP_URL = "https://companiesmarketcap.com/{slug}/marketcap/"
 COMPANIES_PE_URL = "https://companiesmarketcap.com/{slug}/pe-ratio/"
 COMPANIES_MARKET_CAP_SLUGS = {
@@ -50,6 +59,8 @@ def normalize_yahoo_symbol(symbol: str) -> str:
     symbol = symbol.strip()
     if symbol.endswith(".SH"):
         return f"{symbol[:-3]}.SS"
+    if "." in symbol and not symbol.endswith((".SZ", ".HK")):
+        return symbol.replace(".", "-")
     return symbol
 
 
@@ -102,15 +113,24 @@ def _fetch_nasdaq_json(url: str) -> dict:
 
 
 def _fetch_eastmoney_json(url: str) -> dict:
-    request = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "Mozilla/5.0 local-private-finance-research/1.0",
-            "Referer": "https://quote.eastmoney.com/",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=12) as response:
-        return json.loads(response.read().decode("utf-8"))
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    last_error = None
+    for attempt in range(3):
+        request = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 local-private-finance-research/1.0",
+                "Referer": "https://quote.eastmoney.com/",
+            },
+        )
+        try:
+            with opener.open(request, timeout=12) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            last_error = exc
+            if attempt < 2:
+                time.sleep(0.35 * (attempt + 1))
+    raise last_error
 
 
 def _fetch_text(url: str) -> str:
@@ -195,6 +215,24 @@ def fetch_nasdaq_fundamentals(symbol: str) -> dict:
     return parse_nasdaq_fundamentals(summary, dividends)
 
 
+def fetch_stockanalysis_fundamentals(symbol: str) -> dict:
+    if symbol.endswith((".SZ", ".SH", ".HK")):
+        return {}
+    encoded = urllib.parse.quote(symbol.lower(), safe="")
+    html = _fetch_text(STOCK_ANALYSIS_STATISTICS_URL.format(symbol=encoded))
+    market_cap = _parse_stockanalysis_metric(html, "marketcap")
+    trailing_pe = _parse_stockanalysis_metric(html, "pe")
+    return {
+        "market_cap": market_cap,
+        "trailing_pe": trailing_pe,
+        "forward_pe": _parse_stockanalysis_metric(html, "peForward"),
+        "dividend_yield": None,
+        "fifty_two_week_high": None,
+        "fifty_two_week_low": None,
+        "source": "StockAnalysis statistics page",
+    }
+
+
 def fetch_companies_marketcap_fundamentals(symbol: str) -> dict:
     slug = COMPANIES_MARKET_CAP_SLUGS.get(symbol.upper())
     if not slug:
@@ -236,19 +274,39 @@ def fetch_eastmoney_fundamentals(symbol: str) -> dict:
     if market is None:
         return {}
     code = symbol.split(".", 1)[0]
+    if symbol.endswith(".HK"):
+        code = code.zfill(5)
     params = urllib.parse.urlencode({"secid": f"{market}.{code}", "fields": EASTMONEY_FIELDS})
-    payload = _fetch_eastmoney_json(f"{EASTMONEY_QUOTE_URL}?{params}")
-    return parse_eastmoney_fundamentals(payload)
+    last_error = None
+    for host in EASTMONEY_QUOTE_HOSTS:
+        try:
+            payload = _fetch_eastmoney_json(f"https://{host}/api/qt/stock/get?{params}")
+            fundamentals = parse_eastmoney_fundamentals(payload)
+            if fundamentals:
+                return fundamentals
+        except Exception as exc:
+            last_error = exc
+    if last_error:
+        raise last_error
+    return {}
 
 
 def fetch_fallback_fundamentals(symbol: str) -> dict:
-    if symbol.endswith((".SZ", ".SH")):
+    if symbol.endswith((".SZ", ".SH", ".HK")):
         return fetch_eastmoney_fundamentals(symbol)
-    nasdaq = fetch_nasdaq_fundamentals(symbol)
-    if nasdaq.get("market_cap") is not None and nasdaq.get("trailing_pe") is not None:
-        return nasdaq
-    companies = fetch_companies_marketcap_fundamentals(symbol)
-    return _merge_fundamentals(nasdaq, companies)
+    stockanalysis = _fetch_optional_fundamentals(fetch_stockanalysis_fundamentals, symbol)
+    companies = _fetch_optional_fundamentals(fetch_companies_marketcap_fundamentals, symbol)
+    nasdaq = _fetch_optional_fundamentals(fetch_nasdaq_fundamentals, symbol)
+    merged = _merge_fundamentals(stockanalysis, companies)
+    merged = _merge_fundamentals(merged, nasdaq)
+    return merged
+
+
+def _fetch_optional_fundamentals(fetcher, symbol: str) -> dict:
+    try:
+        return fetcher(symbol)
+    except Exception:
+        return {}
 
 
 def _merge_fundamentals(primary: dict, secondary: dict) -> dict:
@@ -267,6 +325,8 @@ def _merge_fundamentals(primary: dict, secondary: dict) -> dict:
 
 
 def _eastmoney_market_id(symbol: str) -> str | None:
+    if symbol.endswith(".HK"):
+        return "116"
     if symbol.endswith(".SH"):
         return "1"
     if symbol.endswith(".SZ"):
@@ -282,16 +342,37 @@ def _has_complete_cached_metrics(cached: dict | None) -> bool:
     if cached is None:
         return False
     returns = cached.get("returns", {})
-    return "six_month" in returns and cached.get("market_cap") is not None and cached.get("trailing_pe") is not None
+    return (
+        cached.get("schema_version") == COMPANY_METRICS_SCHEMA_VERSION
+        and "six_month" in returns
+        and cached.get("market_cap") is not None
+        and cached.get("trailing_pe") is not None
+    )
+
+
+def _has_core_fundamentals(metrics: dict | None) -> bool:
+    return bool(metrics and metrics.get("market_cap") is not None and metrics.get("trailing_pe") is not None)
+
+
+def _parse_stockanalysis_metric(html: str, metric_id: str) -> float | None:
+    metric_match = re.search(
+        rf'id:"{re.escape(metric_id)}",title:"[^"]+",value:"[^"]+",hover:"([^"]+)"',
+        html,
+    )
+    if metric_match:
+        return _parse_number(metric_match.group(1))
+    return None
 
 
 def parse_eastmoney_fundamentals(payload: dict) -> dict:
     data = payload.get("data") or {}
     if not data:
         return {}
+    scaled_pe = _parse_scaled_number(data.get("f162"))
+    direct_pe = _parse_number(data.get("f55"))
     return {
         "market_cap": _parse_number(data.get("f116")),
-        "trailing_pe": _parse_scaled_number(data.get("f162")),
+        "trailing_pe": scaled_pe if scaled_pe not in (None, 0) else direct_pe,
         "forward_pe": None,
         "dividend_yield": None,
         "fifty_two_week_high": None,
@@ -429,6 +510,7 @@ def get_company_metrics(
         if fundamentals:
             sources.append(fundamentals.get("source", "NASDAQ public endpoints"))
         payload = {
+            "schema_version": COMPANY_METRICS_SCHEMA_VERSION,
             "symbol": symbol,
             "yahoo_symbol": normalize_yahoo_symbol(symbol),
             "name": name or quote.get("longName") or quote.get("shortName") or meta.get("longName") or meta.get("shortName") or meta.get("symbol") or symbol,
@@ -460,6 +542,12 @@ def get_company_metrics(
                 )
             ),
         }
+        if not _has_core_fundamentals(payload) and _has_core_fundamentals(cached):
+            for key in ("market_cap", "trailing_pe", "forward_pe", "dividend_yield", "fifty_two_week_high", "fifty_two_week_low"):
+                if payload.get(key) is None and cached.get(key) is not None:
+                    payload[key] = cached[key]
+            payload["fundamentals_stale"] = True
+            payload["source"] = "; ".join([payload["source"], "cached company fundamentals"])
         store.save_company_metrics(symbol, payload)
         return payload
     except Exception as exc:

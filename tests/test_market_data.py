@@ -3,7 +3,10 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from finance_app.market_data import (
+    COMPANY_METRICS_SCHEMA_VERSION,
     fetch_companies_marketcap_fundamentals,
+    fetch_eastmoney_fundamentals,
+    fetch_stockanalysis_fundamentals,
     compute_returns,
     get_company_metrics,
     normalize_yahoo_symbol,
@@ -19,6 +22,7 @@ class MarketDataTests(unittest.TestCase):
         self.assertEqual(normalize_yahoo_symbol("600900.SH"), "600900.SS")
         self.assertEqual(normalize_yahoo_symbol("300308.SZ"), "300308.SZ")
         self.assertEqual(normalize_yahoo_symbol("0700.HK"), "0700.HK")
+        self.assertEqual(normalize_yahoo_symbol("BRK.B"), "BRK-B")
         self.assertEqual(normalize_yahoo_symbol("NVDA"), "NVDA")
 
     def test_computes_returns_from_daily_closes(self):
@@ -56,6 +60,7 @@ class MarketDataTests(unittest.TestCase):
                 "price": 120.0,
                 "market_cap": 1_000_000_000,
                 "trailing_pe": 42.5,
+                "schema_version": COMPANY_METRICS_SCHEMA_VERSION,
                 "returns": {"six_month": 22.5},
                 "fetched_at": "2026-07-01T00:00:00+00:00",
             },
@@ -133,7 +138,14 @@ class MarketDataTests(unittest.TestCase):
             store = ReportStore(db_path)
             store.save_company_metrics(
                 "NVDA",
-                {"symbol": "NVDA", "price": 120.0, "market_cap": 1_000_000_000, "trailing_pe": 42.5, "returns": {"six_month": 22.5}},
+                {
+                    "symbol": "NVDA",
+                    "price": 120.0,
+                    "market_cap": 1_000_000_000,
+                    "trailing_pe": 42.5,
+                    "schema_version": COMPANY_METRICS_SCHEMA_VERSION,
+                    "returns": {"six_month": 22.5},
+                },
             )
 
             with (
@@ -233,6 +245,39 @@ class MarketDataTests(unittest.TestCase):
         self.assertEqual(metrics["market_cap"], 92841300065.03)
         self.assertEqual(metrics["trailing_pe"], 187.64)
 
+    def test_company_metrics_keeps_cached_fundamentals_when_refresh_cannot_fetch_them(self):
+        store = ReportStore(":memory:")
+        store.save_company_metrics(
+            "688012.SH",
+            {
+                "symbol": "688012.SH",
+                "price": 710.0,
+                "market_cap": 440_140_739_346.0,
+                "trailing_pe": 118.26,
+                "returns": {"six_month": 50.0},
+                "fetched_at": "2026-07-01T00:00:00+00:00",
+            },
+        )
+        chart = {
+            "meta": {
+                "symbol": "688012.SS",
+                "regularMarketPrice": 720.0,
+                "currency": "CNY",
+            },
+            "indicators": {"quote": [{"close": [700.0, 720.0]}]},
+        }
+
+        with (
+            patch("finance_app.market_data.fetch_quote", side_effect=Exception("HTTP Error 401: Unauthorized")),
+            patch("finance_app.market_data.fetch_chart", return_value=chart),
+            patch("finance_app.market_data.fetch_fallback_fundamentals", side_effect=Exception("HTTP Error 502: Bad Gateway")),
+        ):
+            metrics = get_company_metrics("688012.SH", name="中微公司", db_path=":memory:", store=store)
+
+        self.assertEqual(metrics["market_cap"], 440_140_739_346.0)
+        self.assertEqual(metrics["trailing_pe"], 118.26)
+        self.assertTrue(metrics["fundamentals_stale"])
+
     def test_companies_marketcap_fundamentals_parse_market_cap_and_pe(self):
         marketcap_html = '<h2><strong>Market cap: <span class="background-ya">$71.60 Billion USD</span></strong></h2>'
         pe_html = "the company's current price-to-earnings ratio (TTM) is <strong>337.154</strong>."
@@ -242,6 +287,16 @@ class MarketDataTests(unittest.TestCase):
 
         self.assertEqual(fundamentals["market_cap"], 71_600_000_000)
         self.assertEqual(fundamentals["trailing_pe"], 337.154)
+
+    def test_stockanalysis_fundamentals_parse_market_cap_and_pe(self):
+        html = 'data:{valuation:{data:[{id:"marketcap",title:"Market Cap",value:"300.95B",hover:"300,950,968,003"}]},ratios:{data:[{id:"pe",title:"PE Ratio",value:"68.41",hover:"68.411"},{id:"peForward",title:"Forward PE",value:"11.88",hover:"11.879"}]}}'
+
+        with patch("finance_app.market_data._fetch_text", return_value=html):
+            fundamentals = fetch_stockanalysis_fundamentals("SNDK")
+
+        self.assertEqual(fundamentals["market_cap"], 300_950_968_003)
+        self.assertEqual(fundamentals["trailing_pe"], 68.411)
+        self.assertEqual(fundamentals["forward_pe"], 11.879)
 
     def test_us_fallback_merges_nasdaq_market_cap_with_companies_marketcap_pe(self):
         chart = {
@@ -274,13 +329,95 @@ class MarketDataTests(unittest.TestCase):
         with (
             patch("finance_app.market_data.fetch_quote", side_effect=Exception("HTTP Error 401: Unauthorized")),
             patch("finance_app.market_data.fetch_chart", return_value=chart),
+            patch("finance_app.market_data.fetch_stockanalysis_fundamentals", return_value={}),
             patch("finance_app.market_data.fetch_nasdaq_fundamentals", return_value=nasdaq),
             patch("finance_app.market_data.fetch_companies_marketcap_fundamentals", return_value=companies),
         ):
             metrics = get_company_metrics("COHR", name="Coherent", db_path=":memory:")
 
-        self.assertEqual(metrics["market_cap"], 71_700_000_000)
+        self.assertEqual(metrics["market_cap"], 71_600_000_000)
         self.assertEqual(metrics["trailing_pe"], 337.154)
+
+    def test_us_fallback_prefers_stockanalysis_over_other_us_sources(self):
+        chart = {
+            "meta": {
+                "symbol": "AVGO",
+                "regularMarketPrice": 372.0,
+                "currency": "USD",
+            },
+            "indicators": {"quote": [{"close": [330.0, 372.0]}]},
+        }
+        nasdaq = {
+            "market_cap": 1_755_000_000_000,
+            "trailing_pe": 11.47,
+            "forward_pe": None,
+            "dividend_yield": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
+            "source": "NASDAQ public quote summary/dividends endpoints",
+        }
+        stockanalysis = {
+            "market_cap": 1_754_500_000_000,
+            "trailing_pe": 70.25,
+            "forward_pe": 33.1,
+            "dividend_yield": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
+            "source": "StockAnalysis statistics page",
+        }
+        companies = {
+            "market_cap": 1_755_000_000_000,
+            "trailing_pe": 71.5436,
+            "forward_pe": None,
+            "dividend_yield": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
+            "source": "CompaniesMarketCap P/E ratio page",
+        }
+
+        with (
+            patch("finance_app.market_data.fetch_quote", side_effect=Exception("HTTP Error 401: Unauthorized")),
+            patch("finance_app.market_data.fetch_chart", return_value=chart),
+            patch("finance_app.market_data.fetch_stockanalysis_fundamentals", return_value=stockanalysis),
+            patch("finance_app.market_data.fetch_nasdaq_fundamentals", return_value=nasdaq),
+            patch("finance_app.market_data.fetch_companies_marketcap_fundamentals", return_value=companies),
+        ):
+            metrics = get_company_metrics("AVGO", name="Broadcom", db_path=":memory:")
+
+        self.assertEqual(metrics["market_cap"], 1_754_500_000_000)
+        self.assertEqual(metrics["trailing_pe"], 70.25)
+        self.assertEqual(metrics["forward_pe"], 33.1)
+
+    def test_us_fallback_keeps_stockanalysis_when_later_source_fails(self):
+        chart = {
+            "meta": {
+                "symbol": "MRVL",
+                "regularMarketPrice": 255.09,
+                "currency": "USD",
+            },
+            "indicators": {"quote": [{"close": [250.0, 255.09]}]},
+        }
+        stockanalysis = {
+            "market_cap": 223_598_880_000.0,
+            "trailing_pe": 88.29,
+            "forward_pe": 56.347,
+            "dividend_yield": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
+            "source": "StockAnalysis statistics page",
+        }
+
+        with (
+            patch("finance_app.market_data.fetch_quote", side_effect=Exception("HTTP Error 401: Unauthorized")),
+            patch("finance_app.market_data.fetch_chart", return_value=chart),
+            patch("finance_app.market_data.fetch_stockanalysis_fundamentals", return_value=stockanalysis),
+            patch("finance_app.market_data.fetch_companies_marketcap_fundamentals", side_effect=Exception("HTTP Error 404: Not Found")),
+            patch("finance_app.market_data.fetch_nasdaq_fundamentals", return_value={}),
+        ):
+            metrics = get_company_metrics("MRVL", name="Marvell Technology", db_path=":memory:")
+
+        self.assertEqual(metrics["market_cap"], 223_598_880_000.0)
+        self.assertEqual(metrics["trailing_pe"], 88.29)
 
     def test_parses_nasdaq_fundamentals_for_blocked_yahoo_quote_fields(self):
         summary = {
@@ -324,6 +461,40 @@ class MarketDataTests(unittest.TestCase):
         self.assertEqual(fundamentals["market_cap"], 92841300065.03)
         self.assertEqual(fundamentals["trailing_pe"], 187.64)
         self.assertEqual(fundamentals["source"], "东方财富单股行情接口")
+
+    def test_parses_eastmoney_hk_fundamentals_from_direct_pe(self):
+        payload = {
+            "data": {
+                "f57": "00700",
+                "f58": "腾讯控股",
+                "f116": 3907842534661.8003,
+                "f162": 0,
+                "f55": 28.915672174,
+            }
+        }
+
+        fundamentals = parse_eastmoney_fundamentals(payload)
+
+        self.assertEqual(fundamentals["market_cap"], 3907842534661.8003)
+        self.assertEqual(fundamentals["trailing_pe"], 28.915672174)
+
+    def test_fetches_eastmoney_hk_symbol_with_five_digit_code(self):
+        payload = {"data": {"f116": 3907842534661.8003, "f162": 0, "f55": 28.915672174}}
+
+        with patch("finance_app.market_data._fetch_eastmoney_json", return_value=payload) as fetch_json:
+            fundamentals = fetch_eastmoney_fundamentals("0700.HK")
+
+        self.assertIn("secid=116.00700", fetch_json.call_args.args[0])
+        self.assertEqual(fundamentals["trailing_pe"], 28.915672174)
+
+    def test_fetches_eastmoney_hk_from_later_host_when_primary_is_empty(self):
+        payload = {"data": {"f116": 3911479428598.1997, "f162": 0, "f55": 28.915672174}}
+
+        with patch("finance_app.market_data._fetch_eastmoney_json", side_effect=[{}, payload]) as fetch_json:
+            fundamentals = fetch_eastmoney_fundamentals("0700.HK")
+
+        self.assertEqual(fetch_json.call_count, 2)
+        self.assertEqual(fundamentals["market_cap"], 3911479428598.1997)
 
 
 if __name__ == "__main__":

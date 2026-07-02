@@ -294,10 +294,10 @@ function renderCandidates(pool) {
     return;
   }
 
+  const visibleCandidates = candidateCollapsed ? candidates.slice(0, 12) : candidates;
   container.innerHTML = `
     <div class="candidate-grid">
-    ${candidates
-      .slice(0, 12)
+    ${visibleCandidates
       .map(
         (item) => `
           <article class="candidate-card">
@@ -312,6 +312,7 @@ function renderCandidates(pool) {
             <div class="candidate-fundamentals" data-symbol="${item.symbol}">
               <span>市值：加载中</span>
               <span>PE：加载中</span>
+              <span class="candidate-updated">更新：加载中</span>
             </div>
             <p>${item.themes.slice(0, 2).join(" / ")}</p>
             <small>${item.risk_tags.join("、")}</small>
@@ -319,7 +320,7 @@ function renderCandidates(pool) {
       )
       .join("")}
     </div>`;
-  hydrateCandidateFundamentals(candidates.slice(0, 12));
+  hydrateCandidateFundamentals(visibleCandidates);
 }
 
 function updateCandidateToggle() {
@@ -331,22 +332,39 @@ function updateCandidateToggle() {
 
 async function hydrateCandidateFundamentals(candidates) {
   const requestId = (candidateMetricsRequestId += 1);
-  await Promise.allSettled(
-    candidates.map(async (item) => {
+  let nextIndex = 0;
+  const workerCount = Math.min(6, candidates.length);
+
+  async function hydrateOne(item) {
+    const target = Array.from(document.querySelectorAll(".candidate-fundamentals")).find(
+      (element) => element.dataset.symbol === item.symbol,
+    );
+    if (!target) return;
+
+    try {
       const params = new URLSearchParams({ symbol: item.symbol, name: item.name });
       const response = await fetch(`/api/company?${params.toString()}`);
       const metrics = await response.json();
       if (requestId !== candidateMetricsRequestId) return;
-      const target = Array.from(document.querySelectorAll(".candidate-fundamentals")).find(
-        (element) => element.dataset.symbol === item.symbol,
-      );
-      if (!target) return;
       const marketCap = formatMarketCap(metrics.market_cap, metrics.currency);
       const peValue = metrics.trailing_pe ?? metrics.forward_pe;
-      const pe = peValue === null || peValue === undefined ? "暂无数据" : formatNumber(peValue);
-      target.innerHTML = `<span>市值：${marketCap}</span><span>PE：${pe}</span>`;
-    }),
-  );
+      const pe = peValue === null || peValue === undefined ? "不适用" : formatNumber(peValue);
+      target.innerHTML = `<span>市值：${marketCap}</span><span>PE：${pe}</span><span class="candidate-updated">更新：${formatTime(metrics.fetched_at)}</span>`;
+    } catch {
+      if (requestId !== candidateMetricsRequestId) return;
+      target.innerHTML = '<span>市值：暂无数据</span><span>PE：暂无数据</span><span class="candidate-updated">更新：暂无数据</span>';
+    }
+  }
+
+  async function worker() {
+    while (nextIndex < candidates.length) {
+      const item = candidates[nextIndex];
+      nextIndex += 1;
+      await hydrateOne(item);
+    }
+  }
+
+  await Promise.allSettled(Array.from({ length: workerCount }, worker));
 }
 
 function showCompanyLoading(name, symbol) {
@@ -358,13 +376,15 @@ function showCompanyLoading(name, symbol) {
 function renderCompany(metrics, detail) {
   const returns = metrics.returns || {};
   const peValue = metrics.trailing_pe ?? metrics.forward_pe;
+  const pe = peValue === null || peValue === undefined ? "不适用" : formatNumber(peValue);
+  const forwardPe = metrics.forward_pe === null || metrics.forward_pe === undefined ? "不适用" : formatNumber(metrics.forward_pe);
   document.querySelector("#companyTitle").textContent = `${metrics.name || ""} ${metrics.symbol || ""}`;
   document.querySelector("#companyBody").innerHTML = `
     <div class="metric-grid">
       <div><span>当前价格</span><strong>${formatNumber(metrics.price)} ${metrics.currency || ""}</strong></div>
       <div><span>市值</span><strong>${formatMarketCap(metrics.market_cap, metrics.currency)}</strong></div>
-      <div><span>PE</span><strong>${formatNumber(peValue)}</strong></div>
-      <div><span>Forward PE</span><strong>${formatNumber(metrics.forward_pe)}</strong></div>
+      <div><span>PE</span><strong>${pe}</strong></div>
+      <div><span>Forward PE</span><strong>${forwardPe}</strong></div>
       <div><span>近 3 天</span><strong class="${percentClass(returns.three_day)}">${formatPercent(returns.three_day)}</strong></div>
       <div><span>近 1 周</span><strong class="${percentClass(returns.one_week)}">${formatPercent(returns.one_week)}</strong></div>
       <div><span>近 1 个月</span><strong class="${percentClass(returns.one_month)}">${formatPercent(returns.one_month)}</strong></div>
