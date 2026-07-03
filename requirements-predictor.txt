@@ -1,0 +1,5 @@
+# Optional heavy dependencies for alphaear-predictor async workers.
+# Install only on a machine intended to run local 1d/3d/5d model inference.
+sentence-transformers>=5.0.0
+torch>=2.0.0
+transformers>=4.45.0

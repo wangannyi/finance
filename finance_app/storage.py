@@ -38,6 +38,19 @@ class ReportStore:
             )
             """
         )
+        self.connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pipeline_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slot TEXT NOT NULL,
+                generated_at TEXT NOT NULL,
+                payload TEXT NOT NULL
+            )
+            """
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_pipeline_runs_slot_time ON pipeline_runs(slot, generated_at DESC)"
+        )
         self.connection.commit()
 
     def save_report(self, report: MarketReport) -> None:
@@ -98,3 +111,26 @@ class ReportStore:
         if row is None:
             return None
         return json.loads(row["payload"])
+
+    def save_pipeline_run(self, slot: str, payload: dict) -> None:
+        payload = dict(payload)
+        payload.setdefault("generated_at", utc_now_iso())
+        self.connection.execute(
+            "INSERT INTO pipeline_runs (slot, generated_at, payload) VALUES (?, ?, ?)",
+            (slot, payload["generated_at"], json.dumps(payload, ensure_ascii=False)),
+        )
+        self.connection.commit()
+
+    def get_pipeline_runs(self, limit: int = 20) -> list[dict]:
+        rows = self.connection.execute(
+            "SELECT slot, generated_at, payload FROM pipeline_runs ORDER BY generated_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [
+            {
+                "slot": row["slot"],
+                "generated_at": row["generated_at"],
+                "payload": json.loads(row["payload"]),
+            }
+            for row in rows
+        ]

@@ -34,11 +34,29 @@ scripts/refresh_reports.sh
 scripts/install_daily_cron.sh
 ```
 
-默认每天早上 08:30 运行一次爬虫，日志写入：
+默认每天早上 08:00 运行一次晨报流水线，日志写入：
 
 ```text
-data/refresh.log
+data/morning.log
 ```
+
+若要启用完整分层流程，安装 5 个时点：
+
+```sh
+scripts/install_market_cron.sh
+```
+
+安装后会运行：
+
+```text
+08:00 morning      全市场晨报
+09:25 auction      A 股竞价快照
+11:40 midday       午间复盘
+15:15 close        收盘复盘
+21:00 us_premarket 美股盘前
+```
+
+每个时点只触发必要 skill 组合，`alphaear-predictor` 只在美股盘前异步队列中出现，不阻塞页面刷新。
 
 查看当前定时任务：
 
@@ -59,6 +77,7 @@ crontab -l
 - 点击龙头公司可查看市值、PE、近 3 天、近 1 周、近 1 个月涨跌幅、52 周高低点等行情指标。
 - 组合规划面板展示 50 万本金、A 股:港股:美股 = 3:1:1 的目标金额和新手风险护栏。
 - 候选池会从三市场热点报告中抽取代表龙头，展示动作、风险标签、观察仓上限和买入前检查。
+- 短线作战台展示今日短线雷达、持仓去留、信号追踪、预测概率和涨跌逻辑链。
 - AKShare 增强数据源安装后可显示 A 股/港股行情快照。
 - 页面每 5 分钟自动从本地 API 重新读取数据。
 
@@ -77,3 +96,11 @@ python -m pip install -r requirements.txt
 ```
 
 AKShare 主要用于增强 A 股和港股数据。未安装时，网站不会崩溃，只会在“增强数据源”面板提示安装方式。
+
+如需让 `alphaear-predictor` 在本机执行模型推理，额外安装：
+
+```sh
+python -m pip install -r requirements-predictor.txt
+```
+
+该依赖包含 PyTorch 和 Transformers，体积较大。未安装时，预测面板仍会显示异步队列状态和概率占位，不阻塞网站。

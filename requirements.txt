@@ -1,1 +1,10 @@
 akshare>=1.18.64
+agno>=1.7.0
+duckduckgo-search>=8.0.0
+ddgs>=9.0.0
+baidusearch>=1.0.3
+pycountry>=24.6.1
+rank-bm25>=0.2.2
+loguru>=0.7.2
+pyecharts>=2.0.0
+yfinance>=0.2.40

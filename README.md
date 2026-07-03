@@ -11,6 +11,8 @@
 - 每个方向包含热度评分、支撑证据、主要风险和最多 5 个高置信代表公司；不为凑数量展示低相关标的。
 - 每个热门方向展示命中的来源链接、标题和关键词，方便复核证据链。
 - 每个市场额外展示“主动发现”主题，用于捕捉观察清单中的新兴方向。
+- 新增分层 skills 流水线：数据层、判断层、预测层、表达层按时点调用，不全量运行。
+- 新增短线作战台：今日短线雷达、持仓去留、信号追踪、预测面板和逻辑链。
 - 美股科技方向已细分为 AI 基础设施、AI 存储/HBM、CPO/光通信等更具体主题。
 - 点击公司可查看当前价格、PE、市值、近 3 天、近 1 周、近 1 个月涨跌幅等信息。
 - 展示 50 万本金、A 股:港股:美股 = 3:1:1 的组合框架和新手风险护栏。
@@ -44,6 +46,14 @@ data/                      # 本地 SQLite 数据库，已被 .gitignore 忽略
 python -m pip install -r requirements.txt
 ```
 
+如果要让 `alphaear-predictor` 在本机真正执行模型推理，再额外安装重依赖：
+
+```sh
+python -m pip install -r requirements-predictor.txt
+```
+
+默认网站不会等待 predictor 模型加载；预测任务先进入异步队列，页面只展示概率区间和运行状态。
+
 启动本地网站：
 
 ```sh
@@ -62,10 +72,22 @@ http://127.0.0.1:8765
 scripts/refresh_reports.sh
 ```
 
-安装每天 08:30 自动刷新：
+安装每天 08:00 自动刷新：
 
 ```sh
 scripts/install_daily_cron.sh
+```
+
+安装 08:00、09:25、11:40、15:15、21:00 五个分层刷新任务：
+
+```sh
+scripts/install_market_cron.sh
+```
+
+手动运行单个时点：
+
+```sh
+scripts/run_pipeline_slot.sh auction
 ```
 
 查看定时任务：
@@ -106,4 +128,8 @@ python -m unittest discover -s tests -v
 
 AKShare 是可选增强数据源，主要用于 A 股、港股和中国金融市场数据。若未安装，网站会继续运行并显示启用提示。
 
+`requirements-predictor.txt` 包含 PyTorch、Transformers 和 Sentence Transformers，体积较大。未安装时不影响每日新闻、搜索、行情、情绪、信号追踪和页面展示。
+
 更多本地运行说明见 [docs/local-private-dashboard.md](docs/local-private-dashboard.md)。
+
+金融与 UI skills 的接入规划见 [docs/skills-integration-plan.md](docs/skills-integration-plan.md)。

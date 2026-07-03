@@ -4,62 +4,106 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>私人投资情报看板</title>
+    <meta name="description" content="本地私有投资研究工作台，跟踪 A 股、港股、美股热点方向和候选标的。" />
+    <meta name="robots" content="noindex,nofollow" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#mainContent">跳到主要内容</a>
     <header class="topbar">
       <div>
-        <p class="eyebrow">Local Private Dashboard</p>
-        <h1>私人投资情报看板</h1>
+        <p class="eyebrow">Private Market Workbench</p>
+        <h1>投资情报工作台</h1>
+      </div>
+      <div class="market-status-bar" id="marketStatusBar" aria-label="市场状态">
+        <span class="market-status-chip">A 股 等待数据</span>
+        <span class="market-status-chip">港股 等待数据</span>
+        <span class="market-status-chip">美股 等待数据</span>
       </div>
       <div class="actions">
         <span id="status" class="status">仅读取本地数据</span>
+        <span id="globalUpdated" class="status">等待刷新</span>
+        <span id="dataHealth" class="health-pill">数据源待检</span>
         <button id="refreshBtn" type="button">立即更新</button>
       </div>
     </header>
 
-    <main>
-      <section class="insight-panel">
-        <div class="section-head">
-          <h2>今日决策摘要</h2>
-          <span id="insightUpdated">等待数据</span>
-        </div>
-        <div id="decisionSummary" class="decision-summary"></div>
-      </section>
+    <div class="workspace">
+      <aside class="sidebar" aria-label="工作台导航">
+        <nav class="side-nav">
+          <a class="nav-item active" href="#todayPanel">今日决策</a>
+          <a class="nav-item" href="#intradayPanel">今日短线</a>
+          <a class="nav-item" href="#candidatePanel">持仓去留</a>
+          <a class="nav-item" href="#workflowPanel">信号追踪</a>
+          <a class="nav-item" href="#reports">主题详情</a>
+        </nav>
+        <section class="sidebar-note" aria-label="风险纪律">
+          <strong>仓位纪律</strong>
+          <span>先证据，后仓位；先止损线，后买卖点。</span>
+        </section>
+      </aside>
 
-      <section class="controls" aria-label="市场筛选">
-        <button class="market-tab active" data-market="all">全部</button>
-        <button class="market-tab" data-market="ch">A 股</button>
-        <button class="market-tab" data-market="hk">港股</button>
-        <button class="market-tab" data-market="us">美股</button>
-      </section>
-
-      <section class="candidate-panel">
-        <div class="section-head">
-          <h2>候选池与持仓前检查</h2>
-          <div class="section-actions">
-            <span id="candidateLimit">按风险护栏生成</span>
-            <button id="candidateToggle" class="ghost-button" type="button" aria-expanded="false" aria-controls="candidatePool">
-              展开
-            </button>
+      <main id="mainContent" class="workbench-main">
+        <section id="todayPanel" class="insight-panel">
+          <div class="section-head">
+            <h2>今日决策面板</h2>
+            <span id="insightUpdated">等待数据</span>
           </div>
-        </div>
-        <div id="candidatePool" class="candidate-pool"></div>
-      </section>
+          <div id="decisionSummary" class="decision-summary"></div>
+        </section>
 
-      <section id="reports" class="reports"></section>
+        <section id="intradayPanel" class="intraday-panel" aria-labelledby="intradayTitle">
+          <div class="section-head">
+            <h2 id="intradayTitle">短线作战台</h2>
+            <span>雷达 / 持仓 / 预测 / 逻辑链</span>
+          </div>
+          <div id="intradayBrief" class="intraday-brief"></div>
+        </section>
 
-      <section class="history-wrap">
-        <div class="section-head">
-          <h2>滚动更新记录</h2>
-          <span>最近 30 条</span>
-        </div>
-        <div id="history" class="ticker"></div>
-      </section>
-    </main>
+        <section id="workflowPanel" class="workflow-panel" aria-labelledby="workflowTitle">
+          <div class="section-head">
+            <h2 id="workflowTitle">研究工作流与信号追踪</h2>
+            <span>skills 增强</span>
+          </div>
+          <div id="pipelineSlots" class="pipeline-slots"></div>
+          <div id="skillRunStatus" class="skill-run-status"></div>
+          <div id="researchWorkflow" class="research-workflow"></div>
+        </section>
+
+        <section class="controls" aria-label="市场筛选">
+          <button class="market-tab active" data-market="all">全部</button>
+          <button class="market-tab" data-market="ch">A 股</button>
+          <button class="market-tab" data-market="hk">港股</button>
+          <button class="market-tab" data-market="us">美股</button>
+        </section>
+
+        <section id="candidatePanel" class="candidate-panel">
+          <div class="section-head">
+            <h2>候选池与持仓前检查</h2>
+            <div class="section-actions">
+              <span id="candidateLimit">按风险护栏生成</span>
+              <button id="candidateToggle" class="ghost-button" type="button" aria-expanded="false" aria-controls="candidatePool">
+                展开
+              </button>
+            </div>
+          </div>
+          <div id="candidatePool" class="candidate-pool"></div>
+        </section>
+
+        <section id="reports" class="reports" aria-label="主题详情"></section>
+
+        <section class="history-wrap">
+          <div class="section-head">
+            <h2>滚动更新记录</h2>
+            <span>最近 30 条</span>
+          </div>
+          <div id="history" class="ticker"></div>
+        </section>
+      </main>
+    </div>
 
     <div id="companyOverlay" class="company-overlay" hidden>
-      <aside class="company-panel" aria-live="polite">
+      <aside class="company-panel" role="dialog" aria-modal="true" aria-labelledby="companyTitle" aria-live="polite">
         <div class="company-panel-head">
           <div>
             <p class="eyebrow">Company Detail</p>

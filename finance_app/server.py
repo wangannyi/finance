@@ -7,9 +7,12 @@ from urllib.parse import parse_qs, urlparse
 
 from .akshare_provider import AkshareProvider
 from .candidates import build_candidate_pool
+from .intraday_brief import build_intraday_brief
 from .market_data import get_company_metrics, preload_company_metrics
 from .portfolio import build_default_portfolio_plan
 from .refresh_manager import RefreshManager
+from .research_workflow import build_research_workflow
+from .skill_pipeline import build_pipeline_status
 from .storage import ReportStore
 
 
@@ -99,6 +102,9 @@ class FinanceHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/history":
             self._send_json(ReportStore(str(DB_PATH)).get_history())
             return
+        if parsed.path == "/api/pipeline-runs":
+            self._send_json(ReportStore(str(DB_PATH)).get_pipeline_runs())
+            return
         if parsed.path == "/api/portfolio":
             self._send_json(build_default_portfolio_plan())
             return
@@ -108,6 +114,15 @@ class FinanceHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/candidates":
             store = ReportStore(str(DB_PATH))
             self._send_json(build_candidate_pool(store.get_latest_reports(), build_default_portfolio_plan()))
+            return
+        if parsed.path == "/api/research-workflow":
+            self._send_json(build_research_workflow(ReportStore(str(DB_PATH)).get_latest_reports()))
+            return
+        if parsed.path == "/api/skill-pipeline":
+            self._send_json(build_pipeline_status())
+            return
+        if parsed.path == "/api/intraday-brief":
+            self._send_json(build_intraday_brief(ReportStore(str(DB_PATH)).get_latest_reports()))
             return
         if parsed.path == "/api/company":
             query = parse_qs(parsed.query)

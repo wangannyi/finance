@@ -7,6 +7,10 @@ const labels = {
 let selectedMarket = "all";
 let currentReports = [];
 let currentCandidatePool = { candidates: [], limits: {} };
+let currentWorkflow = { stages: [], tracked_signals: [] };
+let currentIntradayBrief = { radar: [], holdings: [], signals: [], predictions: [], logic_chains: [] };
+let currentPipelineStatus = { slots: [] };
+let currentPipelineRuns = [];
 let candidateCollapsed = true;
 let candidateMetricsRequestId = 0;
 
@@ -41,6 +45,18 @@ function percentClass(value) {
 function formatTime(value) {
   if (!value) return "未知时间";
   return new Date(value).toLocaleString("zh-CN", { hour12: false });
+}
+
+function marketDisplayName(market) {
+  return { ch: "A 股", hk: "港股", us: "美股" }[market] || market;
+}
+
+function latestReportTime(reports) {
+  return reports
+    .map((report) => report.generated_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
 }
 
 function hostLabel(url) {
@@ -189,13 +205,15 @@ function renderDecisionSummary(plan, reports, pool) {
   const container = document.querySelector("#decisionSummary");
   const updated = document.querySelector("#insightUpdated");
   const candidates = pool.candidates || [];
-  const directions = flattenDirections(reports);
-  const topDirection = directions.sort((a, b) => (b.score || 0) - (a.score || 0))[0];
-  const latestTime = reports
-    .map((report) => report.generated_at)
-    .filter(Boolean)
-    .sort()
-    .at(-1);
+  const directions = flattenDirections(reports).sort((a, b) => (b.score || 0) - (a.score || 0));
+  const topDirection = directions[0];
+  const riskDirection =
+    directions.find((item) => /高波动|估值|追高|回撤|风险|波动/.test(`${item.risk || ""}${item.name || ""}`)) || directions[1];
+  const lowPosition =
+    directions.find((item) => item.score < 180 || /材料|光刻胶|电子特气|氟化工|刻蚀/.test(item.name || "")) || directions[2];
+  const noChase =
+    directions.find((item) => item.horizon === "day" && (item.score || 0) > 220) || directions.find((item) => item.horizon === "day");
+  const latestTime = latestReportTime(reports);
   const dayThemes = reports.reduce((sum, report) => sum + (report.horizons?.day || []).length, 0);
   const highRiskCount = candidates.filter((item) => (item.risk_tags || []).some((tag) => tag.includes("高波动"))).length;
   const singleLimit = plan.guardrails?.max_single_position_amount;
@@ -210,31 +228,252 @@ function renderDecisionSummary(plan, reports, pool) {
 
   container.innerHTML = `
     <div class="summary-grid">
-      <div class="summary-tile focus-tile">
-        <span>当前最强线索</span>
-        <strong>${topDirection ? topDirection.name : "暂无方向"}</strong>
-        <small>${topDirection ? `${topDirection.marketName} · ${labels[topDirection.horizon]} · 热度 ${topDirection.score}` : "等待刷新"}</small>
-      </div>
-      <div class="summary-tile">
-        <span>今日可跟踪主题</span>
-        <strong>${dayThemes} 个</strong>
-        <small>A 股 / 港股 / 美股短线方向合计</small>
-      </div>
-      <div class="summary-tile">
-        <span>候选池</span>
-        <strong>${candidates.length} 个</strong>
-        <small>${highRiskCount} 个高波动，先观察再分批</small>
-      </div>
-      <div class="summary-tile">
-        <span>风险护栏</span>
-        <strong>${formatMarketCap(singleLimit, "CNY")}</strong>
-        <small>单标的上限；单主题上限 ${formatMarketCap(themeLimit, "CNY")}</small>
-      </div>
+      ${renderDecisionTile("今日最强方向", topDirection, "focus-tile")}
+      ${renderDecisionTile("风险最高方向", riskDirection)}
+      ${renderDecisionTile("可埋伏方向", lowPosition)}
+      ${renderDecisionTile("不能追方向", noChase)}
+    </div>
+    <div class="decision-meta-row">
+      <span>今日主题 ${dayThemes} 个</span>
+      <span>候选池 ${candidates.length} 个</span>
+      <span>高波动 ${highRiskCount} 个</span>
+      <span>单标的上限 ${formatMarketCap(singleLimit, "CNY")}</span>
+      <span>单主题上限 ${formatMarketCap(themeLimit, "CNY")}</span>
     </div>
     <div class="summary-action">
-      <strong>下一步：</strong>
-      先看“候选池与持仓前检查”，再展开各市场排名前 3 的证据来源。没有公告、财报或估值验证前，不把热点当买入信号。
+      <strong>执行顺序：</strong>
+      先看持仓纪律，再看题材证据；没有公告、财报或估值验证前，不把热点当买入信号。
     </div>`;
+}
+
+function renderDecisionTile(title, direction, className = "") {
+  return `
+    <div class="summary-tile ${className}">
+      <span>${title}</span>
+      <strong>${direction ? direction.name : "暂无方向"}</strong>
+      <small>${direction ? `${direction.marketName} · ${labels[direction.horizon]} · 热度 ${direction.score}` : "等待刷新"}</small>
+    </div>`;
+}
+
+function renderMarketStatus(reports, pipelineRuns) {
+  const chips = document.querySelector("#marketStatusBar");
+  const globalUpdated = document.querySelector("#globalUpdated");
+  const dataHealth = document.querySelector("#dataHealth");
+  if (!chips) return;
+  const latestTime = latestReportTime(reports);
+  const latestRun = pipelineRuns?.[0]?.payload;
+  const resultRows = latestRun?.skill_results || [];
+  const degradedCount = resultRows.filter((item) => ["error", "degraded"].includes(item.status)).length;
+  const okCount = resultRows.filter((item) => ["ok", "agentic", "queued_async"].includes(item.status)).length;
+  globalUpdated.textContent = latestTime ? `数据 ${formatTime(latestTime)}` : "等待刷新";
+  dataHealth.textContent = resultRows.length ? `数据源 ${okCount}/${resultRows.length}` : "数据源待检";
+  dataHealth.classList.toggle("warn", degradedCount > 0);
+  chips.innerHTML = ["ch", "hk", "us"]
+    .map((market) => {
+      const report = reports.find((item) => item.market === market);
+      const dayCount = report?.horizons?.day?.length || 0;
+      const top = report?.horizons?.day?.[0]?.name || "等待数据";
+      return `<span class="market-status-chip ${report ? "is-live" : ""}"><strong>${marketDisplayName(market)}</strong><em>${dayCount} 方向</em><small>${top}</small></span>`;
+    })
+    .join("");
+}
+
+function renderResearchWorkflow(workflow) {
+  currentWorkflow = workflow || { stages: [], tracked_signals: [] };
+  const container = document.querySelector("#researchWorkflow");
+  if (!container) return;
+  const stages = currentWorkflow.stages || [];
+  const signals = currentWorkflow.tracked_signals || [];
+  const visibleSignals =
+    selectedMarket === "all" ? signals.slice(0, 8) : signals.filter((item) => item.market === selectedMarket).slice(0, 8);
+
+  if (!stages.length && !signals.length) {
+    container.innerHTML = '<div class="empty compact-empty">等待每日刷新后生成研究工作流。</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="workflow-strip">
+      ${stages
+        .map(
+          (stage, index) => `
+            <div class="workflow-step">
+              <span>${String(index + 1).padStart(2, "0")}</span>
+              <strong>${stage.name}</strong>
+              <small>${(stage.skills || []).join(" / ")}</small>
+            </div>`,
+        )
+        .join("")}
+    </div>
+    <div class="signal-board">
+      <div class="signal-head">
+        <strong>短线信号雷达</strong>
+        <span>${currentWorkflow.refresh_cadence || "08:00 daily"} · ${formatTime(currentWorkflow.latest_update)}</span>
+      </div>
+      <div class="signal-list">
+        ${
+          visibleSignals.length
+            ? visibleSignals
+                .map(
+                  (signal) => `
+                    <article class="signal-row">
+                      <div>
+                        <strong>${signal.name}</strong>
+                        <span>${signal.market_name} · ${signal.horizons?.join(" / ") || signal.primary_horizon}</span>
+                      </div>
+                      <div class="signal-status ${signal.status === "增强" ? "hot" : ""}">${signal.status}</div>
+                      <p>${signal.next_action}</p>
+                    </article>`,
+                )
+                .join("")
+            : '<div class="empty compact-empty">当前筛选市场暂无信号。</div>'
+        }
+      </div>
+    </div>`;
+}
+
+function renderPipelineSlots(status) {
+  currentPipelineStatus = status || { slots: [] };
+  const container = document.querySelector("#pipelineSlots");
+  if (!container) return;
+  const slots = currentPipelineStatus.slots || [];
+  if (!slots.length) {
+    container.innerHTML = '<div class="empty compact-empty">等待加载分时点计划。</div>';
+    return;
+  }
+  container.innerHTML = slots
+    .map(
+      (slot) => `
+        <div class="slot-chip">
+          <strong>${slot.time}</strong>
+          <span>${slot.title}</span>
+          <small>${(slot.skills || []).length} skills${slot.async_only ? " · 异步" : ""}</small>
+        </div>`,
+    )
+    .join("");
+}
+
+function renderSkillRunStatus(runs) {
+  currentPipelineRuns = runs || [];
+  const container = document.querySelector("#skillRunStatus");
+  if (!container) return;
+  const latest = currentPipelineRuns[0]?.payload;
+  if (!latest) {
+    container.innerHTML = '<div class="empty compact-empty">暂无分时点运行记录。</div>';
+    return;
+  }
+  const rows = latest.skill_results || [];
+  container.innerHTML = `
+    <div class="skill-run-head">
+      <strong>最近运行：${latest.time} ${latest.title}</strong>
+      <span>${formatTime(latest.generated_at)}</span>
+    </div>
+    <div class="skill-run-grid">
+      ${
+        rows.length
+          ? rows
+              .map(
+                (item) => `
+                  <div class="skill-run-chip ${item.status}">
+                    <strong>${item.skill}</strong>
+                    <span>${item.status}</span>
+                    <small>${item.summary || "暂无摘要"}</small>
+                  </div>`,
+              )
+              .join("")
+          : '<div class="empty compact-empty">该次运行未启用外部 skill adapter。</div>'
+      }
+    </div>`;
+}
+
+function renderIntradayBrief(brief) {
+  currentIntradayBrief = brief || { radar: [], holdings: [], signals: [], predictions: [], logic_chains: [] };
+  const container = document.querySelector("#intradayBrief");
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="intraday-grid">
+      <section class="intraday-card">
+        <h3>今日短线雷达</h3>
+        ${(currentIntradayBrief.radar || [])
+          .map(
+            (group) => `
+              <div class="radar-group">
+                <strong>${group.name}</strong>
+                <span>${(group.items || []).join(" / ") || "等待信号"}</span>
+                <small>${group.rule}</small>
+              </div>`,
+          )
+          .join("")}
+      </section>
+      <section class="intraday-card">
+        <h3>持仓去留</h3>
+        ${(currentIntradayBrief.holdings || [])
+          .map(
+            (item) => `
+              <div class="holding-row action-${item.action}">
+                <div class="holding-title">
+                  <strong>${item.name}</strong>
+                  <span>${item.symbol}</span>
+                </div>
+                <b>${item.action}</b>
+                <div class="holding-metrics">
+                  <span>成本 ${formatNumber(item.cost)}</span>
+                  <span>数量 ${formatNumber(item.shares)}</span>
+                  <span>纪律线 ${formatNumber(item.stop_loss)}</span>
+                </div>
+                <small>${item.trigger || item.reason}</small>
+              </div>`,
+          )
+          .join("")}
+      </section>
+      <section class="intraday-card">
+        <h3>信号追踪</h3>
+        ${(currentIntradayBrief.signals || [])
+          .slice(0, 5)
+          .map(
+            (item) => `
+              <div class="tracking-row">
+                <div><strong>${item.name}</strong><span>${item.market_name} · ${item.horizons?.join(" / ") || item.primary_horizon}</span></div>
+                <b class="${item.status === "增强" ? "hot" : ""}">${item.status}</b>
+                <small>${item.next_action}</small>
+              </div>`,
+          )
+          .join("")}
+      </section>
+      <section class="intraday-card">
+        <h3>预测面板</h3>
+        ${(currentIntradayBrief.predictions || [])
+          .slice(0, 4)
+          .map(
+            (item) => `
+              <div class="prediction-row">
+                <strong>${item.name}</strong>
+                <span>1日 ${formatProbability(item.horizons?.["1d"])} · 3日 ${formatProbability(item.horizons?.["3d"])} · 5日 ${formatProbability(item.horizons?.["5d"])}</span>
+                <small>${item.summary}</small>
+              </div>`,
+          )
+          .join("")}
+      </section>
+      <section class="intraday-card">
+        <h3>逻辑链</h3>
+        ${(currentIntradayBrief.logic_chains || [])
+          .slice(0, 4)
+          .map(
+            (item) => `
+              <div class="logic-row">
+                <strong>${item.name}</strong>
+                <span>${(item.chain || []).join(" → ")}</span>
+              </div>`,
+          )
+          .join("")}
+      </section>
+    </div>`;
+}
+
+function formatProbability(item) {
+  if (!item) return "待跑";
+  return `${Math.round((item.probability || 0) * 100)}% ${item.bias || ""}`.trim();
 }
 
 function renderDataSnapshot(snapshot) {
@@ -430,16 +669,37 @@ function renderHistory(history) {
 }
 
 async function loadCoreData() {
-  const [reportsResponse, portfolioResponse, candidatesResponse] = await Promise.all([
+  const [
+    reportsResponse,
+    portfolioResponse,
+    candidatesResponse,
+    workflowResponse,
+    pipelineResponse,
+    intradayResponse,
+    pipelineRunsResponse,
+  ] = await Promise.all([
     fetch("/api/reports"),
     fetch("/api/portfolio"),
     fetch("/api/candidates"),
+    fetch("/api/research-workflow"),
+    fetch("/api/skill-pipeline"),
+    fetch("/api/intraday-brief"),
+    fetch("/api/pipeline-runs"),
   ]);
   const reports = await reportsResponse.json();
   const portfolio = await portfolioResponse.json();
   const candidates = await candidatesResponse.json();
+  const workflow = await workflowResponse.json();
+  const pipeline = await pipelineResponse.json();
+  const intraday = await intradayResponse.json();
+  const pipelineRuns = await pipelineRunsResponse.json();
   renderReports(reports);
   renderDecisionSummary(portfolio, reports, candidates);
+  renderMarketStatus(reports, pipelineRuns);
+  renderPipelineSlots(pipeline);
+  renderSkillRunStatus(pipelineRuns);
+  renderResearchWorkflow(workflow);
+  renderIntradayBrief(intraday);
   renderCandidates(candidates);
   warmCompanyCache();
 }
@@ -525,6 +785,7 @@ document.querySelectorAll(".market-tab").forEach((button) => {
     document.querySelectorAll(".market-tab").forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
     renderReports(currentReports);
+    renderResearchWorkflow(currentWorkflow);
     renderCandidates(currentCandidatePool);
   });
 });
@@ -540,6 +801,11 @@ document.querySelector("#closeCompanyPanel").addEventListener("click", () => {
 });
 document.querySelector("#companyOverlay").addEventListener("click", (event) => {
   if (event.target.id === "companyOverlay") {
+    document.querySelector("#companyOverlay").hidden = true;
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
     document.querySelector("#companyOverlay").hidden = true;
   }
 });
