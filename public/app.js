@@ -4,7 +4,8 @@ const labels = {
   month: "接下来一个月",
 };
 
-let selectedMarket = "all";
+const PRIMARY_MARKET = "ch";
+let selectedMarket = PRIMARY_MARKET;
 let currentReports = [];
 let currentCandidatePool = { candidates: [], limits: {} };
 let currentWorkflow = { stages: [], tracked_signals: [] };
@@ -48,7 +49,38 @@ function formatTime(value) {
 }
 
 function marketDisplayName(market) {
-  return { ch: "A 股", hk: "港股", us: "美股" }[market] || market;
+  return { ch: "A 股" }[market] || "A 股";
+}
+
+function onlyPrimaryHistory(history) {
+  return (history || []).filter((item) => item.market === PRIMARY_MARKET || item.market_name === "A 股");
+}
+
+function onlyPrimaryReports(reports) {
+  return (reports || []).filter((item) => item.market === PRIMARY_MARKET);
+}
+
+function onlyPrimaryCandidatePool(pool) {
+  return {
+    ...(pool || {}),
+    candidates: (pool?.candidates || []).filter((item) => item.market === PRIMARY_MARKET),
+  };
+}
+
+function onlyPrimaryWorkflow(workflow) {
+  return {
+    ...(workflow || {}),
+    tracked_signals: (workflow?.tracked_signals || []).filter((item) => item.market === PRIMARY_MARKET),
+  };
+}
+
+function onlyPrimaryIntraday(brief) {
+  return {
+    ...(brief || {}),
+    signals: (brief?.signals || []).filter((item) => item.market === PRIMARY_MARKET),
+    predictions: (brief?.predictions || []).filter((item) => !item.market || item.market === PRIMARY_MARKET),
+    logic_chains: (brief?.logic_chains || []).filter((item) => !item.market || item.market === PRIMARY_MARKET),
+  };
 }
 
 function latestReportTime(reports) {
@@ -68,9 +100,9 @@ function hostLabel(url) {
 }
 
 function renderReports(reports) {
-  currentReports = reports;
+  currentReports = onlyPrimaryReports(reports);
   const container = document.querySelector("#reports");
-  const visible = selectedMarket === "all" ? reports : reports.filter((item) => item.market === selectedMarket);
+  const visible = currentReports;
 
   if (visible.length === 0) {
     container.innerHTML = '<div class="empty">暂无数据。点击“立即更新”生成第一批本地报告。</div>';
@@ -125,10 +157,10 @@ function renderReports(reports) {
         .join("");
 
       return `
-        <article class="market-card">
+        <article class="market-card a-share-report">
           <div class="market-head">
             <div>
-              <h2>${report.market_name}</h2>
+              <h2>A 股主线证据</h2>
               <p>${report.summary}</p>
             </div>
             <div class="generated">${formatTime(report.generated_at)}</div>
@@ -204,8 +236,10 @@ function flattenDirections(reports) {
 function renderDecisionSummary(plan, reports, pool) {
   const container = document.querySelector("#decisionSummary");
   const updated = document.querySelector("#insightUpdated");
-  const candidates = pool.candidates || [];
-  const directions = flattenDirections(reports).sort((a, b) => (b.score || 0) - (a.score || 0));
+  const primaryReports = onlyPrimaryReports(reports);
+  const primaryPool = onlyPrimaryCandidatePool(pool);
+  const candidates = primaryPool.candidates || [];
+  const directions = flattenDirections(primaryReports).sort((a, b) => (b.score || 0) - (a.score || 0));
   const topDirection = directions[0];
   const riskDirection =
     directions.find((item) => /高波动|估值|追高|回撤|风险|波动/.test(`${item.risk || ""}${item.name || ""}`)) || directions[1];
@@ -213,29 +247,34 @@ function renderDecisionSummary(plan, reports, pool) {
     directions.find((item) => item.score < 180 || /材料|光刻胶|电子特气|氟化工|刻蚀/.test(item.name || "")) || directions[2];
   const noChase =
     directions.find((item) => item.horizon === "day" && (item.score || 0) > 220) || directions.find((item) => item.horizon === "day");
-  const latestTime = latestReportTime(reports);
-  const dayThemes = reports.reduce((sum, report) => sum + (report.horizons?.day || []).length, 0);
+  const latestTime = latestReportTime(primaryReports);
+  const dayThemes = primaryReports.reduce((sum, report) => sum + (report.horizons?.day || []).length, 0);
   const highRiskCount = candidates.filter((item) => (item.risk_tags || []).some((tag) => tag.includes("高波动"))).length;
   const singleLimit = plan.guardrails?.max_single_position_amount;
   const themeLimit = plan.guardrails?.max_theme_amount;
 
   updated.textContent = latestTime ? `更新于 ${formatTime(latestTime)}` : "等待更新";
 
-  if (!reports.length) {
-    container.innerHTML = '<div class="empty">暂无报告。点击“立即更新”生成今日市场摘要。</div>';
+  if (!primaryReports.length) {
+    container.innerHTML = '<div class="empty">暂无 A 股报告。点击“立即更新”生成今日市场摘要。</div>';
     return;
   }
 
   container.innerHTML = `
+    <div class="a-share-callout">
+      <span>今天只看 A 股</span>
+      <strong>${topDirection ? topDirection.name : "等待方向"}</strong>
+      <p>${topDirection ? topDirection.evidence || topDirection.risk || "等待更多证据" : "等待刷新生成主线判断。"}</p>
+    </div>
     <div class="summary-grid">
-      ${renderDecisionTile("今日最强方向", topDirection, "focus-tile")}
-      ${renderDecisionTile("风险最高方向", riskDirection)}
-      ${renderDecisionTile("可埋伏方向", lowPosition)}
-      ${renderDecisionTile("不能追方向", noChase)}
+      ${renderDecisionTile("主线方向", topDirection, "focus-tile")}
+      ${renderDecisionTile("风险最高", riskDirection)}
+      ${renderDecisionTile("可低位观察", lowPosition)}
+      ${renderDecisionTile("今天不追", noChase)}
     </div>
     <div class="decision-meta-row">
-      <span>今日主题 ${dayThemes} 个</span>
-      <span>候选池 ${candidates.length} 个</span>
+      <span>A 股主题 ${dayThemes} 个</span>
+      <span>A 股候选 ${candidates.length} 个</span>
       <span>高波动 ${highRiskCount} 个</span>
       <span>单标的上限 ${formatMarketCap(singleLimit, "CNY")}</span>
       <span>单主题上限 ${formatMarketCap(themeLimit, "CNY")}</span>
@@ -251,7 +290,7 @@ function renderDecisionTile(title, direction, className = "") {
     <div class="summary-tile ${className}">
       <span>${title}</span>
       <strong>${direction ? direction.name : "暂无方向"}</strong>
-      <small>${direction ? `${direction.marketName} · ${labels[direction.horizon]} · 热度 ${direction.score}` : "等待刷新"}</small>
+      <small>${direction ? `${labels[direction.horizon]} · 热度 ${direction.score}` : "等待刷新"}</small>
     </div>`;
 }
 
@@ -260,7 +299,8 @@ function renderMarketStatus(reports, pipelineRuns) {
   const globalUpdated = document.querySelector("#globalUpdated");
   const dataHealth = document.querySelector("#dataHealth");
   if (!chips) return;
-  const latestTime = latestReportTime(reports);
+  const primaryReports = onlyPrimaryReports(reports);
+  const latestTime = latestReportTime(primaryReports);
   const latestRun = pipelineRuns?.[0]?.payload;
   const resultRows = latestRun?.skill_results || [];
   const degradedCount = resultRows.filter((item) => ["error", "degraded"].includes(item.status)).length;
@@ -268,14 +308,10 @@ function renderMarketStatus(reports, pipelineRuns) {
   globalUpdated.textContent = latestTime ? `数据 ${formatTime(latestTime)}` : "等待刷新";
   dataHealth.textContent = resultRows.length ? `数据源 ${okCount}/${resultRows.length}` : "数据源待检";
   dataHealth.classList.toggle("warn", degradedCount > 0);
-  chips.innerHTML = ["ch", "hk", "us"]
-    .map((market) => {
-      const report = reports.find((item) => item.market === market);
-      const dayCount = report?.horizons?.day?.length || 0;
-      const top = report?.horizons?.day?.[0]?.name || "等待数据";
-      return `<span class="market-status-chip ${report ? "is-live" : ""}"><strong>${marketDisplayName(market)}</strong><em>${dayCount} 方向</em><small>${top}</small></span>`;
-    })
-    .join("");
+  const report = primaryReports[0];
+  const dayCount = report?.horizons?.day?.length || 0;
+  const top = report?.horizons?.day?.[0]?.name || "等待数据";
+  chips.innerHTML = `<span class="market-status-chip ${report ? "is-live" : ""}"><strong>A 股</strong><em>${dayCount} 方向</em><small>${top}</small></span>`;
 }
 
 function renderResearchWorkflow(workflow) {
@@ -481,9 +517,9 @@ function renderDataSnapshot(snapshot) {
   if (!container) return;
   const status = snapshot.status || {};
   const aShareCount = (snapshot.a_share || []).length;
-  const hkCount = (snapshot.hk || []).length;
   const errors = snapshot.errors || [];
-  const samples = [...(snapshot.a_share || []).slice(0, 3), ...(snapshot.hk || []).slice(0, 3)]
+  const samples = (snapshot.a_share || [])
+    .slice(0, 6)
     .map(
       (item) => `
         <div class="snapshot-row">
@@ -500,9 +536,8 @@ function renderDataSnapshot(snapshot) {
     ${errors.length ? `<div class="warning">${errors.join("<br>")}</div>` : ""}
     <div class="data-counts">
       <div><span>A 股快照</span><strong>${aShareCount}</strong></div>
-      <div><span>港股快照</span><strong>${hkCount}</strong></div>
     </div>
-    ${samples ? `<div class="snapshot-list">${samples}</div>` : '<div class="empty">安装 AKShare 后可显示 A 股/港股增强行情快照。</div>'}`;
+    ${samples ? `<div class="snapshot-list">${samples}</div>` : '<div class="empty">安装 AKShare 后可显示 A 股增强行情快照。</div>'}`;
 }
 
 function renderSnapshotLoading() {
@@ -516,20 +551,17 @@ function renderSnapshotIdle() {
 }
 
 function renderCandidates(pool) {
-  currentCandidatePool = pool;
+  currentCandidatePool = onlyPrimaryCandidatePool(pool);
   const container = document.querySelector("#candidatePool");
   const limit = document.querySelector("#candidateLimit");
   const panel = document.querySelector(".candidate-panel");
-  const candidates =
-    selectedMarket === "all"
-      ? pool.candidates || []
-      : (pool.candidates || []).filter((item) => item.market === selectedMarket);
+  const candidates = currentCandidatePool.candidates || [];
   limit.textContent = `${candidateCollapsed ? "折叠显示前排" : "完整显示"} · 共 ${candidates.length} 个 · 单标的上限 ${formatMarketCap(pool.limits?.max_single_position_amount, "CNY")}`;
   panel.classList.toggle("is-collapsed", candidateCollapsed);
   updateCandidateToggle();
 
   if (!candidates.length) {
-    container.innerHTML = '<div class="empty">当前市场暂无候选标的。先点击“立即更新”生成最新报告。</div>';
+    container.innerHTML = '<div class="empty">当前暂无 A 股候选标的。先点击“立即更新”生成最新报告。</div>';
     return;
   }
 
@@ -539,22 +571,23 @@ function renderCandidates(pool) {
     ${visibleCandidates
       .map(
         (item) => `
-          <article class="candidate-card">
+          <article class="candidate-card market-${item.market}">
             <button class="leader candidate-company" type="button" data-name="${item.name}" data-symbol="${item.symbol}" data-detail="${item.leader_detail}">
-              <strong>${item.name}</strong><span>${item.symbol}</span>
+              <span class="company-name"><strong>${item.name}</strong><em>${item.symbol}</em></span>
+              <span class="open-indicator">详情</span>
             </button>
             <div class="candidate-meta">
-              <span>${item.market_name}</span>
+              <span class="market-badge">A 股</span>
               <strong>${item.action}</strong>
-              <span>${formatMarketCap(item.max_observation_amount, "CNY")}</span>
+              <span class="limit-badge">${formatMarketCap(item.max_observation_amount, "CNY")}</span>
             </div>
             <div class="candidate-fundamentals" data-symbol="${item.symbol}">
               <span>市值：加载中</span>
               <span>PE：加载中</span>
               <span class="candidate-updated">更新：加载中</span>
             </div>
-            <p>${item.themes.slice(0, 2).join(" / ")}</p>
-            <small>${item.risk_tags.join("、")}</small>
+            <p class="candidate-theme">${item.themes.slice(0, 2).join(" / ")}</p>
+            <small class="candidate-risk">${item.risk_tags.join("、")}</small>
           </article>`,
       )
       .join("")}
@@ -656,14 +689,15 @@ async function openCompanyPanel(button) {
 
 function renderHistory(history) {
   const container = document.querySelector("#history");
-  if (!history.length) {
-    container.innerHTML = '<div class="empty">暂无历史记录</div>';
+  const aShareHistory = onlyPrimaryHistory(history);
+  if (!aShareHistory.length) {
+    container.innerHTML = '<div class="empty">暂无 A 股历史记录</div>';
     return;
   }
-  container.innerHTML = history
+  container.innerHTML = aShareHistory
     .map((item) => {
       const first = item.horizons?.day?.[0]?.name || "暂无方向";
-      return `<div class="ticker-row"><strong>${item.market_name}</strong><span>${formatTime(item.generated_at)}</span><span>${first}</span></div>`;
+      return `<div class="ticker-row"><strong>A 股</strong><span>${formatTime(item.generated_at)}</span><span>${first}</span></div>`;
     })
     .join("");
 }
@@ -689,18 +723,20 @@ async function loadCoreData() {
   const reports = await reportsResponse.json();
   const portfolio = await portfolioResponse.json();
   const candidates = await candidatesResponse.json();
-  const workflow = await workflowResponse.json();
+  const workflow = onlyPrimaryWorkflow(await workflowResponse.json());
   const pipeline = await pipelineResponse.json();
-  const intraday = await intradayResponse.json();
+  const intraday = onlyPrimaryIntraday(await intradayResponse.json());
   const pipelineRuns = await pipelineRunsResponse.json();
-  renderReports(reports);
-  renderDecisionSummary(portfolio, reports, candidates);
-  renderMarketStatus(reports, pipelineRuns);
+  const primaryReports = onlyPrimaryReports(reports);
+  const primaryCandidates = onlyPrimaryCandidatePool(candidates);
+  renderReports(primaryReports);
+  renderDecisionSummary(portfolio, primaryReports, primaryCandidates);
+  renderMarketStatus(primaryReports, pipelineRuns);
   renderPipelineSlots(pipeline);
   renderSkillRunStatus(pipelineRuns);
   renderResearchWorkflow(workflow);
   renderIntradayBrief(intraday);
-  renderCandidates(candidates);
+  renderCandidates(primaryCandidates);
   warmCompanyCache();
 }
 
@@ -747,7 +783,7 @@ async function pollRefresh() {
     const response = await fetch("/api/refresh-status");
     const payload = await response.json();
     if (payload.status === "complete") {
-      status.textContent = `已更新 ${payload.saved_count || 0} 个市场`;
+      status.textContent = "已更新 A 股数据";
       await loadCoreData();
       loadSecondaryData();
       button.disabled = false;
@@ -781,9 +817,8 @@ async function refreshData() {
 
 document.querySelectorAll(".market-tab").forEach((button) => {
   button.addEventListener("click", async () => {
-    selectedMarket = button.dataset.market;
-    document.querySelectorAll(".market-tab").forEach((item) => item.classList.remove("active"));
-    button.classList.add("active");
+    selectedMarket = PRIMARY_MARKET;
+    document.querySelectorAll(".market-tab").forEach((item) => item.classList.toggle("active", item.dataset.market === PRIMARY_MARKET));
     renderReports(currentReports);
     renderResearchWorkflow(currentWorkflow);
     renderCandidates(currentCandidatePool);
